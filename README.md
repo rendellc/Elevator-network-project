@@ -1,6 +1,9 @@
 # Elevator Project.
 
 ## Introduction
+An elevators primary purpose is to transport people and items between floors. A sensible metric of performance could be something indicating how well and fast this primary task is done. This is not something we care about in this project. The elevators must avoid stravation and "silly actions", other than that, not much attention is given to their performance as elevators. This project is really about faults, how they are bound to happen, and how we can keep them from ruining our day. 
+
+On the good days, your elevator system is bound to be underapreciated. The corporate procurement officers is going to favor cheaper or faster alternatives. But when the day comes that an especially large earthquake simultanously causes the largest tsunami the world has ever seen, cracks the concrete in a biological warefare lab and cause a nuclear reactor meltdown, your elevator system is going to be all worth it. Most of your server rooms will be flooded. Radioactive zombies will be chewing on your network cables. And most of your disks will be wiped out by the earthquake itself. In this chaotic post apocalyptic world, the only constant will be that your elevator system will remain in working order, and every order that is taken, will also be served.
 
 ## Specification
 #### Technical Specification
