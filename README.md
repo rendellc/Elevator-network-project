@@ -88,3 +88,7 @@ We encourage submissions to this list! Tutorials, libraries, articles, blog post
    - [Practical Unit Testing](https://www.youtube.com/watch?v=i_oA5ZWLhQc) (video): "Readable, Maintainable, and Trustworthy"
    - [Core Principles and Practices for Creating Lightweight Design](https://www.youtube.com/watch?v=3G-LO9T3D1M&t=4h31m25s) (video)
    
+
+## Contact
+- If you find an error or something missing please post an issue or a pull request.
+- Updated contact information can be found [here](https://www.ntnu.no/studier/emner/TTK4145).
