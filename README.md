@@ -88,7 +88,9 @@ We encourage submissions to this list! Tutorials, libraries, articles, blog post
    - [Practical Unit Testing](https://www.youtube.com/watch?v=i_oA5ZWLhQc) (video): "Readable, Maintainable, and Trustworthy"
    - [Core Principles and Practices for Creating Lightweight Design](https://www.youtube.com/watch?v=3G-LO9T3D1M&t=4h31m25s) (video)
     - [Origins and pitfalls of the recursive mutex](http://zaval.org/resources/library/butenhof1.html). (TL;DR: Recursive mutexes are usually bad, because if you need one you're holding a lock for too long)
-   
+
+## Tips&Tricks
+- For a process to access the io card (elevator hw) on the real time lab the user running the process must be in the iocard group. To add user student to the iocard group run `sudo usermod -a -G iocard student`.
 
 ## Contact
 - If you find an error or something missing please post an issue or a pull request.
