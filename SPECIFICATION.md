@@ -12,7 +12,7 @@
 1. An order is taken when a participating elevator changes the light corresponding to the order from off to on. If an order is already taken and this happens, it changes nothing.
 1. An order is served when a participating elevator open it's doors at the corresponding floor and the corresponding light is in (or is turned to) off state for this particular elevator. We say that this particular elevator has served the order.
 
-### 2. General Intentions
+### 2. Elevator Behaviour
 1. This specification describe software for controlling `n` elevators working in parallel across `m` floors.
 1. When a hall order is taken, it must be served within reasonable time.
 1. When a cab order is taken, it must be served within reasonable time. The only elevator able to serve such order is the elevator corresponding to the panel where the order was placed.
