@@ -38,4 +38,7 @@
 1. What happens after the stop button is pressed is intentionaly unspecified.
 1. What happens after the obstruction button switch is turned on is intentionaly unspecified.
 
+### 5. Practical Implementation
+1. Your program should be started with a simple one liner. It should be started the exact same way for all participating elevators. If some configuration is required, (either as input args or through a config file) this should be the exact same for all participating elevators. You might be asked to hand in executables for the completion test. (If you're writing in a language that require an interpreter and/or have problems generating executables, talk to the student assistants or the person administrating this project to get help).
+
 
