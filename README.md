@@ -17,7 +17,7 @@ Before revealing the formal way to resolve specification ambiguities theres one 
 If you're not satisified with the answer of a student assistant or believes that the issue at hand requires a formal explanation you should start reading the "old" FAQs. If no answer can be found you may fill out an issue following the guidelines (TODO: insert link). If found warrented your issue will result in a new FAQ or change in the techincal specification, and you will at least get a response from the teaching staff.
 
 #### A word of comfort
-If this seem daunting to you, fear not. You can choose to not care about any of this. If you instead of reading formal specifications use your best intuition on how elevators should work and ask as many questions as you can come up with to the student assistants and your fellow students you will most likely come up with something thats pretty close to the complete specification as well.
+If this seem daunting to you, fear not. You can choose to not care about any of this. If you instead of reading formal specifications use your best intuition on how elevators should work and ask as many questions as you can come up with to the student assistants and your fellow students you will come up with something that is identical to the complete specification.
 
 ## Programming Language
 We do not impose any constraints on which programming languages you can use. As long as it's possible to use it for the task at hand, you're allowed to do so. You are responsible of keeping track of any tools you might need for making your project work (compilers, dependencies, build systems, etc) and the versioning of these, but we know these things can be hard and you should not hesitate to ask for help. 
