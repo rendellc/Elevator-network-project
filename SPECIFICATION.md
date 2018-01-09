@@ -44,6 +44,5 @@
 ##### 5.2 Your program must not depend on any configuration files.
 ##### 5.3 Your program must not depend on any command line arguments except those defined here. Furthermore, your program must work in the presence of these command line arguments.
  - `--id <id>` where all particiapating elevators will be started with an unique `<id>` in the range `[0, 255]`.
-##### 5.1. Your program should be started with a simple one liner. It will be started the exact same way for all participating elevators. If some configuration is required, (either as input args or through a config file) this should be the exact same for all participating elevators. You might be asked to hand in executables for the completion test. 
 
 
