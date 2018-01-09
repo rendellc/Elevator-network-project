@@ -14,7 +14,7 @@ The "complete specification" doesn't exist in written form. It's a metaphysical 
 #### FAQ
 Before revealing the formal way to resolve specification ambiguities theres one more part of the specification that needs to be discussed. Namely the FAQ (TODO: insert link). The FAQ contains clarifications in regards to how the specification should be interpreted. There should never be conflicting answers between the FAQ and the technical specification, or between different FAQs.
 
-If you're not satisified with the answer of a student assistant or believes that the issue at hand requires a formal explanation you should start reading the "old" FAQs. If no answer can be found you may fill out an issue following the guidelines (TODO: insert link). If found warrented your issue will result in a new FAQ or change in the techincal specification, and you will at least get a response from the teaching staff.
+If you're not satisified with the answer of a student assistant or believes that the issue at hand requires a formal explanation you should start reading the "old" FAQs. If no answer can be found you may fill out an issue following the [guidelines](CONTRIBUTING.md). If found warrented your issue will result in a new FAQ or change in the techincal specification, and you will at least get a response from the teaching staff.
 
 #### A word of comfort
 If this seem daunting to you, fear not. You can choose to not care about any of this. If you instead of reading formal specifications use your best intuition on how elevators should work and ask as many questions as you can come up with to the student assistants and your fellow students you will come up with something that is identical to the complete specification.
