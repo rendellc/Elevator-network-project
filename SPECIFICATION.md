@@ -17,7 +17,7 @@
 ##### 2.3 When a cab order is accepted, it must be served within reasonable time. The only elevator able to serve such order is the elevator corresponding to the panel where the order was placed.
 ##### 2.4 It is not reasonable to expect the order to be completed as long as the only participating elevator able (as described in 2.3) to serve it is non-functional.
 ##### 2.5 Multiple elevators must be more efficient than one, in cases where this is reasonable to expect.
-##### 2.6 The elevator system must avoid doing unnecessary actions (e.g. stopping at floors where it can be sure that no orders exists). 
+##### 2.6 The elevator system must avoid doing unnecessary actions. 
 ##### 2.7 The elevators should have a sense of direction, more specifically, the elevators must avoid serving hall-up and hall-down orders on the same floor at the same time.
 ##### 2.8 A placed order should be ignored if there is no way to assure redundancy.
 ##### 2.9 A placed order can be intermittently disregarded as long as multiple placement attempts have a low probability of failing (it is allowed to disregard an order due to 3 udp packets being dropped in a row, or due to one of the elevators is busy initializing, etc).
