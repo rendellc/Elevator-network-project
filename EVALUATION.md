@@ -26,16 +26,17 @@ You will need to consult the [specification](https://github.com/TTK4145/Project#
  - You should know what errors that are likely to occur, and how they are handled in your system. 
 
 #### Code Quality
- - The modules should be well named.
- - The modules should make up a reasonable partitioning of the system. (dependencies/coupling between the modules should be minimized)
- - Do the module interfaces seem nice abstractions of the modules responsibilities? 
+ - You should partition the system into modules.
+ - You should minimize the couplings/dependencies between the modules, and make these couplings explicit.
+ - You should give the modules names that summarize their responsibilities.
+ - You should ensure that the module interfaces are consistent with the module responsibilities. 
 
 #### Design of RT systems
  - You should be able to explain what strengths/weaknesses that is relevant for your chosen tools (programming language etc). 
  - You should be able to explain how the abstractions you have chosen are represent-able with your chosen tools.
 
 #### Presentation
- - You should be able to convey your solution clearly?
+ - You should be able to convey your solution clearly.
 
 ### Disclaimers
 You should not think of the design document as a complete specification but rather a draft. You should use feedback from the design review and your gained insight into the task at hand to improve/change your design as you go along.
