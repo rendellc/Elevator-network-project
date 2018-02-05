@@ -4,10 +4,13 @@ import (
 	"fmt"
 	"net"
 	"network"
+	"time"
 )
 
+const server_ip = "129.241.187.38"
+
 func main() {
-	err := network.SendBytes([]byte("This is my msg"), "129.241.187.38:20010")
+	err := network.SendBytes([]byte("Message sending test"), server_ip+":20010")
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -17,15 +20,22 @@ func main() {
 		fmt.Println(err)
 		return
 	}
+
 	conn, err := net.ListenUDP("udp", addr)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
+
 	defer conn.Close()
+	conn.SetReadDeadline(time.Now().Add(2 * time.Second))
 
 	buffer := make([]byte, 1024)
-	n, _, _ := conn.ReadFromUDP(buffer)
+	n, _, err := conn.ReadFromUDP(buffer)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 
 	fmt.Println(string(buffer[:n]))
 
