@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"time"
 )
 
 const max_udp_datagram_size = 508
@@ -30,5 +29,7 @@ func SendBytes(data []byte, destination string) error {
 	}
 
 	log.Printf("%d bytes of data sent too %s\n", n, destination)
+
+
 	return nil
 }
