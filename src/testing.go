@@ -11,16 +11,21 @@ import (
 const server_ip = "129.241.187.38"
 
 type Order struct {
+	OrderID   int `json:"order_id"`
 	Floor     int `json:"floor"`
 	Direction int `json:"direction"`
 }
 
 type OrderPlacedMsg struct {
-	SourceID string `json:"source_id"`
-	OrderID  int    `json:"order_id"`
+	SourceID int    `json:"source_id"`
 	MsgType  string `json:"msg_type"`
 	Order    Order  `json:"order"`
 	Priority int    `json:"priority"`
+}
+
+type TakeOrderMsg struct {
+	Order Order `json:"order"`
+	CmdID int   `json:"cmd_id"` // specify the elevator that should take the order
 }
 
 func main() {
@@ -51,8 +56,8 @@ func main() {
 	}
 
 	fmt.Println(string(buffer[:n]))
-	
-	msg := OrderPlacedMsg{SourceID: "source", OrderID: 1234, MsgType: "testing type", Order:Order{Floor: 1, Direction: -1}, Priority: 1}
+
+	msg := OrderPlacedMsg{SourceID: "source", OrderID: 1234, MsgType: "testing type", Order: Order{Floor: 1, Direction: -1}, Priority: 1}
 
 	data, err := json.MarshalIndent(msg, "", " ")
 	if err != nil {
