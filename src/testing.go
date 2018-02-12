@@ -10,10 +10,26 @@ import (
 
 const server_ip = "129.241.187.38"
 
+type Direction int
+
+const (
+	Up Direction = iota
+	Down
+)
+
+type ElevatorState int
+
+const (
+	MovingUp ElevatorState = iota
+	MovingDown
+	StopUp
+	StopDown
+)
+
 type Order struct {
-	OrderID   int `json:"order_id"`
-	Floor     int `json:"floor"`
-	Direction int `json:"direction"`
+	OrderID   int       `json:"order_id"`
+	Floor     int       `json:"floor"`
+	Direction Direction `json:"direction"`
 }
 
 type OrderPlacedMsg struct {
