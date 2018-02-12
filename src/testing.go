@@ -92,7 +92,7 @@ func main() {
 
 	fmt.Println(string(buffer[:n]))
 
-	msg := OrderPlacedMsg{SourceID: "source", OrderID: 1234, MsgType: "testing type", Order: Order{Floor: 1, Direction: -1}, Priority: 1}
+	msg := OrderPlacedMsg{SourceID: 0, MsgType: "testing type", Order: Order{OrderID: 1234, Floor: 1, Direction: -1}, Priority: 1}
 
 	data, err := json.MarshalIndent(msg, "", " ")
 	if err != nil {
