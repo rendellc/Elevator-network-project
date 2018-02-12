@@ -39,6 +39,25 @@ type OrderPlacedMsg struct {
 	Priority int    `json:"priority"`
 }
 
+type OrderPlacedAck struct {
+	SourceID int    `json:"source_id"`
+	OrderID  int    `json:"order_id"`
+	MsgType  string `json:"msg_type"`
+	Score    int    `json:"score"`
+}
+
+type TakeOrderAck struct {
+	OrderID int    `json:"order_id"`
+	MsgType string `json:"msg_type"`
+}
+
+type HeartBeat struct {
+	SourceID       int           `json:"source_id"`
+	ElevatorState  ElevatorState `json:"elevator_state"`
+	AcceptedOrders []Order       `json:"accepted_orders"`
+	TakenOrders    []Order       `json:"taken_orders"`
+}
+
 type TakeOrderMsg struct {
 	Order Order `json:"order"`
 	CmdID int   `json:"cmd_id"` // specify the elevator that should take the order
