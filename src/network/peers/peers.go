@@ -6,6 +6,8 @@ import (
 	"net"
 	"sort"
 	"time"
+	"encoding/json"
+	"../../msgtype"
 )
 
 type PeerUpdate struct {
@@ -14,18 +16,17 @@ type PeerUpdate struct {
 	Lost  []string
 }
 
-
 const interval = 15 * time.Millisecond
 const timeout = 50 * time.Millisecond
 
-func Transmitter(port int, id string, transmitEnable <-chan bool, statusCh <-chan []byte) {
+func Transmitter(port int, id string, transmitEnable <-chan bool, statusCh <-chan msgtype.Heartbeat) {
 
 	conn := conn.DialBroadcastUDP(port)
-	addr, _ := net.ResolveUDPAddr("udp4", fmt.Sprintf("255.255.255.255:%d", port))
+	addr, _ := net.ResolveUDPAddr("udp4", fmt.Sprintf("129.241.187.255:%d", port))
 
 	enable := true
 	statusRecieved := false
-	var recivedStatus []byte
+	var recivedStatus msgtype.Heartbeat
 	for {
 		select {
 		case enable = <-transmitEnable:
@@ -34,12 +35,16 @@ func Transmitter(port int, id string, transmitEnable <-chan bool, statusCh <-cha
 		case <-time.After(interval):
 		}
 		if enable && statusRecieved {
-			conn.WriteTo(recivedStatus, addr)
+			serialized, err := json.Marshal(recivedStatus)
+			if err != nil {
+				continue
+			}
+			conn.WriteTo(serialized, addr)
 		}
 	}
 }
 
-func Receiver(port int, peerUpdateCh chan<- PeerUpdate) {
+func Receiver(port int, peerUpdateCh chan<- PeerUpdate, statusCh chan<- msgtype.Heartbeat) {
 
 	var buf [1024]byte
 	var p PeerUpdate
@@ -52,8 +57,11 @@ func Receiver(port int, peerUpdateCh chan<- PeerUpdate) {
 
 		conn.SetReadDeadline(time.Now().Add(interval))
 		n, _, _ := conn.ReadFrom(buf[0:])
+		data := buf[:n]
+		var heartbeat msgtype.Heartbeat
+		json.Unmarshal(data, &heartbeat)
 
-		id := string(buf[:n])
+		id := heartbeat.SourceID
 
 		// Adding new connection
 		p.New = ""
