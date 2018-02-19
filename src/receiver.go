@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"./network/bcast"
+	"./network/peers"
 )
 
 const server_ip = "129.241.187.38"
@@ -79,13 +80,13 @@ func main() {
 
 	peerTxEnable := make(chan bool)
 	peerStatusCh := make(chan []byte)
-	peerUpdateCh := make(chan peer.PeerUpdate)
+	peerUpdateCh := make(chan peers.PeerUpdate)
 
 
 	//go bcast.Transmitter(20010, orderPlacedSendCh, orderPlacedAckSendCh)
 	go bcast.Receiver(20010, orderPlacedRecvCh, orderPlacedAckRecvCh)
-	go peer.Transmitter(20010, "testid", peerTxEnable, peerStatusCh)
-	go peer.Receiver(20010, peerUpdateCh)
+	go peers.Transmitter(20010, "testid", peerTxEnable, peerStatusCh)
+	go peers.Receiver(20010, peerUpdateCh)
 /*
 	orderPlacedSendCh<-msg1
 	orderPlacedAckSendCh<-msg2
