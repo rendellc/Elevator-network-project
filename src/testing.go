@@ -1,11 +1,8 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
-	"net"
-	"network"
-	"time"
+	"./network/bcast"
 )
 
 const server_ip = "129.241.187.38"
@@ -51,7 +48,7 @@ type TakeOrderAck struct {
 	MsgType string `json:"msg_type"`
 }
 
-type HeartBeat struct {
+type Heartbeat struct {
 	SourceID       int           `json:"source_id"`
 	ElevatorState  ElevatorState `json:"elevator_state"`
 	AcceptedOrders []Order       `json:"accepted_orders"`
@@ -64,6 +61,45 @@ type TakeOrderMsg struct {
 }
 
 func main() {
+	msg1 := OrderPlacedMsg{SourceID: 0, MsgType: "testing type", Order: Order{OrderID: 1234, Floor: 1, Direction: -1}, Priority: 1}
+	msg2 := OrderPlacedAck{SourceID: 1, OrderID: 1234, MsgType: "ackack", Score: 666}
+
+	orderPlacedSendCh := make(chan OrderPlacedMsg)
+	orderPlacedRecvCh := make(chan OrderPlacedMsg)
+	orderPlacedAckSendCh := make(chan OrderPlacedAck)
+	orderPlacedAckRecvCh := make(chan OrderPlacedAck)
+	/*
+	takeOrderAckSendCh := make(chan TakeOrderAck)
+	takeOrderAckRecvCh := make(chan TakeOrderAck)
+	takeOrderSendCh := make(chan TakeOrderMsg)
+	takeOrderRecvCh := make(chan TakeOrderMsg)
+	heartbeatSendCh := make(chan Heartbeat)
+	heartbeatRecvCh := make(chan Heartbeat)
+	*/
+
+
+	go bcast.Transmitter(20010, orderPlacedSendCh, orderPlacedAckSendCh)
+	go bcast.Receiver(20010, orderPlacedRecvCh, orderPlacedAckRecvCh)
+
+	orderPlacedSendCh<-msg1
+	orderPlacedAckSendCh<-msg2
+	orderPlacedSendCh<-msg1
+	orderPlacedAckSendCh<-msg2
+	orderPlacedSendCh<-msg1
+	fmt.Println("Message transmitted")
+
+	msgRecv1:= <-orderPlacedRecvCh
+	fmt.Println(msgRecv1)
+	msgRecv2:= <-orderPlacedAckRecvCh
+	fmt.Println(msgRecv2)
+	msgRecv1= <-orderPlacedRecvCh
+	fmt.Println(msgRecv1)
+	msgRecv2= <-orderPlacedAckRecvCh
+	fmt.Println(msgRecv2)
+	msgRecv1= <-orderPlacedRecvCh
+	fmt.Println(msgRecv1)
+	
+	/*
 	err := network.SendBytes([]byte("Message sending test"), server_ip+":20010")
 	if err != nil {
 		fmt.Println(err)
@@ -104,4 +140,5 @@ func main() {
 	json.Unmarshal(data, &un_msg)
 
 	fmt.Println(un_msg)
+	*/
 }
