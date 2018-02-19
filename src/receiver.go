@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	//"encoding/json"
-	"./network/bcast"
+	//"./network/bcast"
 	"./network/peers"
 	"./msgtype"
 )
@@ -16,9 +16,9 @@ func main() {
 	//msg2 := OrderPlacedAck{SourceID: 1, OrderID: 1234, MsgType: "ackack", Score: 666}
 	//beat := Heartbeat{SourceID: 3, ElevatorState: MovingUp, AcceptedOrders: []Order{Order{OrderID: 1234, Floor: 1, Direction: Down}}, TakenOrders: []Order{Order{OrderID: 1234, Floor: 1, Direction: Down}}}
 	//orderPlacedSendCh := make(chan OrderPlacedMsg)
-	orderPlacedRecvCh := make(chan msgtype.OrderPlacedMsg)
+	//orderPlacedRecvCh := make(chan msgtype.OrderPlacedMsg)
 	//orderPlacedAckSendCh := make(chan OrderPlacedAck)
-	orderPlacedAckRecvCh := make(chan msgtype.OrderPlacedAck)
+	//orderPlacedAckRecvCh := make(chan msgtype.OrderPlacedAck)
 	/*
 	takeOrderAckSendCh := make(chan TakeOrderAck)
 	takeOrderAckRecvCh := make(chan TakeOrderAck)
@@ -35,7 +35,7 @@ func main() {
 
 
 	//go bcast.Transmitter(20010, orderPlacedSendCh, orderPlacedAckSendCh)
-	go bcast.Receiver(20010, orderPlacedRecvCh, orderPlacedAckRecvCh)
+	//go bcast.Receiver(20010, orderPlacedRecvCh, orderPlacedAckRecvCh)
 	//go peers.Transmitter(20010, "testid", peerTxEnable, peerStatusSendCh)
 	go peers.Receiver(20010, peerUpdateCh, peerStatusCh)
 /*
@@ -53,12 +53,12 @@ func main() {
 
 	for{
 		select{
-		case msgRecv1:= <-orderPlacedRecvCh:
-			fmt.Println(msgRecv1)
-		case msgRecv2:= <-orderPlacedAckRecvCh:
-			fmt.Println(msgRecv2)
-		case  <-peerUpdateCh:
-			//fmt.Println(peerUpdate)
+		//ase msgRecv1:= <-orderPlacedRecvCh:
+		//	fmt.Println(msgRecv1)
+		//case msgRecv2:= <-orderPlacedAckRecvCh:
+		//	fmt.Println(msgRecv2)
+		case peerUpdate := <-peerUpdateCh:
+			fmt.Println(peerUpdate)
 		case peerStatus := <-peerStatusCh:
 			fmt.Printf("%+v\n",peerStatus)
 		}

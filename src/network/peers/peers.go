@@ -19,7 +19,7 @@ type PeerUpdate struct {
 const interval = 15 * time.Millisecond
 const timeout = 50 * time.Millisecond
 
-func Transmitter(port int, id string, transmitEnable <-chan bool, statusCh <-chan msgtype.Heartbeat) {
+func Transmitter(port int, transmitEnable <-chan bool, statusCh <-chan msgtype.Heartbeat) {
 
 	conn := conn.DialBroadcastUDP(port)
 	addr, _ := net.ResolveUDPAddr("udp4", fmt.Sprintf("129.241.187.255:%d", port))
@@ -60,6 +60,11 @@ func Receiver(port int, peerUpdateCh chan<- PeerUpdate, statusCh chan<- msgtype.
 		data := buf[:n]
 		var heartbeat msgtype.Heartbeat
 		json.Unmarshal(data, &heartbeat)
+
+		go func(heartbeat msgtype.Heartbeat){
+			statusCh <- heartbeat
+		}(heartbeat)
+
 
 		id := heartbeat.SourceID
 
