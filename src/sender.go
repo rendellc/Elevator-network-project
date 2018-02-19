@@ -61,13 +61,11 @@ type TakeOrderMsg struct {
 }
 
 func main() {
-	//msg1 := OrderPlacedMsg{SourceID: 0, MsgType: "testing type", Order: Order{OrderID: 1234, Floor: 1, Direction: -1}, Priority: 1}
-	//msg2 := OrderPlacedAck{SourceID: 1, OrderID: 1234, MsgType: "ackack", Score: 666}
 
-	//orderPlacedSendCh := make(chan OrderPlacedMsg)
-	orderPlacedRecvCh := make(chan OrderPlacedMsg)
-	//orderPlacedAckSendCh := make(chan OrderPlacedAck)
-	orderPlacedAckRecvCh := make(chan OrderPlacedAck)
+	orderPlacedSendCh := make(chan OrderPlacedMsg)
+	//orderPlacedRecvCh := make(chan OrderPlacedMsg)
+	orderPlacedAckSendCh := make(chan OrderPlacedAck)
+	//orderPlacedAckRecvCh := make(chan OrderPlacedAck)
 	/*
 		takeOrderAckSendCh := make(chan TakeOrderAck)
 		takeOrderAckRecvCh := make(chan TakeOrderAck)
@@ -77,27 +75,29 @@ func main() {
 		heartbeatRecvCh := make(chan Heartbeat)
 	*/
 
-	//go bcast.Transmitter(20010, orderPlacedSendCh, orderPlacedAckSendCh)
-	go bcast.Receiver(20010, orderPlacedRecvCh, orderPlacedAckRecvCh)
+	go bcast.Transmitter(20010, orderPlacedSendCh, orderPlacedAckSendCh)
+	//go bcast.Receiver(20010, orderPlacedRecvCh, orderPlacedAckRecvCh)
 
-	/*
-		orderPlacedSendCh<-msg1
-		orderPlacedAckSendCh<-msg2
-		orderPlacedSendCh<-msg1
-		orderPlacedAckSendCh<-msg2
-		orderPlacedSendCh<-msg1
+	for i := 0; i < 9; i++ {
+		msg1 := OrderPlacedMsg{SourceID: i, MsgType: "testing type", Order: Order{OrderID: 1234, Floor: 1, Direction: -1}, Priority: 1}
+		msg2 := OrderPlacedAck{SourceID: 100 + i, OrderID: 1234, MsgType: "ackack", Score: 666}
 
-	*/
-	fmt.Println("Listening")
-
-	for {
-		select {
-		case msgRecv1 := <-orderPlacedRecvCh:
-			fmt.Println(msgRecv1)
-		case msgRecv2 := <-orderPlacedAckRecvCh:
-			fmt.Println(msgRecv2)
-		}
+		orderPlacedSendCh <- msg1
+		orderPlacedAckSendCh <- msg2
 	}
+
+	fmt.Println("Messages transmitted")
+
+	//msgRecv1:= <-orderPlacedRecvCh
+	//fmt.Println(msgRecv1)
+	//msgRecv2:= <-orderPlacedAckRecvCh
+	//fmt.Println(msgRecv2)
+	//msgRecv1= <-orderPlacedRecvCh
+	//fmt.Println(msgRecv1)
+	//msgRecv2= <-orderPlacedAckRecvCh
+	//fmt.Println(msgRecv2)
+	//msgRecv1= <-orderPlacedRecvCh
+	//fmt.Println(msgRecv1)
 
 	/*
 		err := network.SendBytes([]byte("Message sending test"), server_ip+":20010")
