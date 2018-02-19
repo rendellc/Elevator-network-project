@@ -1,13 +1,14 @@
 package peers
 
 import (
+	"../../msgs"
 	"../conn"
+	"encoding/json"
 	"fmt"
+	"log"
 	"net"
 	"sort"
 	"time"
-	"encoding/json"
-	"../../msgtype"
 )
 
 type PeerUpdate struct {
@@ -19,14 +20,14 @@ type PeerUpdate struct {
 const interval = 15 * time.Millisecond
 const timeout = 50 * time.Millisecond
 
-func Transmitter(port int, transmitEnable <-chan bool, statusCh <-chan msgtype.Heartbeat) {
+func Transmitter(port int, transmitEnable <-chan bool, statusCh <-chan msgs.Heartbeat) {
 
 	conn := conn.DialBroadcastUDP(port)
-	addr, _ := net.ResolveUDPAddr("udp4", fmt.Sprintf("129.241.187.255:%d", port))
+	addr, _ := net.ResolveUDPAddr("udp4", fmt.Sprintf("255.255.255.255:%d", port))
 
 	enable := true
 	statusRecieved := false
-	var recivedStatus msgtype.Heartbeat
+	var recivedStatus msgs.Heartbeat
 	for {
 		select {
 		case enable = <-transmitEnable:
@@ -37,14 +38,19 @@ func Transmitter(port int, transmitEnable <-chan bool, statusCh <-chan msgtype.H
 		if enable && statusRecieved {
 			serialized, err := json.Marshal(recivedStatus)
 			if err != nil {
+				log.Println("[peer]", err)
 				continue
 			}
-			conn.WriteTo(serialized, addr)
+			_, err = conn.WriteTo(serialized, addr)
+			if err != nil {
+				log.Println("[peer]", err)
+				continue
+			}
 		}
 	}
 }
 
-func Receiver(port int, peerUpdateCh chan<- PeerUpdate, statusCh chan<- msgtype.Heartbeat) {
+func Receiver(port int, peerUpdateCh chan<- PeerUpdate /*, statusCh chan<- msgs.Heartbeat*/) {
 
 	var buf [1024]byte
 	var p PeerUpdate
@@ -58,13 +64,12 @@ func Receiver(port int, peerUpdateCh chan<- PeerUpdate, statusCh chan<- msgtype.
 		conn.SetReadDeadline(time.Now().Add(interval))
 		n, _, _ := conn.ReadFrom(buf[0:])
 		data := buf[:n]
-		var heartbeat msgtype.Heartbeat
+		var heartbeat msgs.Heartbeat
 		json.Unmarshal(data, &heartbeat)
 
-		go func(heartbeat msgtype.Heartbeat){
-			statusCh <- heartbeat
-		}(heartbeat)
-
+		//go func(heartbeat msgs.Heartbeat){
+		//	statusCh <- heartbeat
+		//}(heartbeat)
 
 		id := heartbeat.SourceID
 

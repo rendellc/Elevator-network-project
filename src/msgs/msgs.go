@@ -1,4 +1,4 @@
-package msgtype
+package msgs
 
 type Direction int
 
