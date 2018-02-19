@@ -14,10 +14,11 @@ type PeerUpdate struct {
 	Lost  []string
 }
 
+
 const interval = 15 * time.Millisecond
 const timeout = 50 * time.Millisecond
 
-func Transmitter(port int, id string, transmitEnable <-chan bool) {
+func Transmitter(port int, id string, transmitEnable <-chan bool, statusCh <-chan []byte) {
 
 	conn := conn.DialBroadcastUDP(port)
 	addr, _ := net.ResolveUDPAddr("udp4", fmt.Sprintf("255.255.255.255:%d", port))
