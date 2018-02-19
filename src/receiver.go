@@ -1,8 +1,8 @@
 package main
 
 import (
-	"./network/bcast"
 	"fmt"
+	"./network/bcast"
 )
 
 const server_ip = "129.241.187.38"
@@ -69,76 +69,84 @@ func main() {
 	//orderPlacedAckSendCh := make(chan OrderPlacedAck)
 	orderPlacedAckRecvCh := make(chan OrderPlacedAck)
 	/*
-		takeOrderAckSendCh := make(chan TakeOrderAck)
-		takeOrderAckRecvCh := make(chan TakeOrderAck)
-		takeOrderSendCh := make(chan TakeOrderMsg)
-		takeOrderRecvCh := make(chan TakeOrderMsg)
-		heartbeatSendCh := make(chan Heartbeat)
-		heartbeatRecvCh := make(chan Heartbeat)
+	takeOrderAckSendCh := make(chan TakeOrderAck)
+	takeOrderAckRecvCh := make(chan TakeOrderAck)
+	takeOrderSendCh := make(chan TakeOrderMsg)
+	takeOrderRecvCh := make(chan TakeOrderMsg)
+	heartbeatSendCh := make(chan Heartbeat)
+	heartbeatRecvCh := make(chan Heartbeat)
 	*/
+
+	peerTxEnable := make(chan bool)
+	peerStatusCh := make(chan []byte)
+	peerUpdateCh := make(chan peer.PeerUpdate)
+
 
 	//go bcast.Transmitter(20010, orderPlacedSendCh, orderPlacedAckSendCh)
 	go bcast.Receiver(20010, orderPlacedRecvCh, orderPlacedAckRecvCh)
-
-	/*
-		orderPlacedSendCh<-msg1
-		orderPlacedAckSendCh<-msg2
-		orderPlacedSendCh<-msg1
-		orderPlacedAckSendCh<-msg2
-		orderPlacedSendCh<-msg1
-
-	*/
+	go peer.Transmitter(20010, "testid", peerTxEnable, peerStatusCh)
+	go peer.Receiver(20010, peerUpdateCh)
+/*
+	orderPlacedSendCh<-msg1
+	orderPlacedAckSendCh<-msg2
+	orderPlacedSendCh<-msg1
+	orderPlacedAckSendCh<-msg2
+	orderPlacedSendCh<-msg1
+	
+*/
 	fmt.Println("Listening")
 
-	for {
-		select {
-		case msgRecv1 := <-orderPlacedRecvCh:
+	for{
+		select{
+		case msgRecv1:= <-orderPlacedRecvCh:
 			fmt.Println(msgRecv1)
-		case msgRecv2 := <-orderPlacedAckRecvCh:
+		case msgRecv2:= <-orderPlacedAckRecvCh:
 			fmt.Println(msgRecv2)
+		case peerUpdate := <-peerUpdateCh:
+			fmt.Println(peerUpdate)
 		}
 	}
-
+	
 	/*
-		err := network.SendBytes([]byte("Message sending test"), server_ip+":20010")
-		if err != nil {
-			fmt.Println(err)
-		}
+	err := network.SendBytes([]byte("Message sending test"), server_ip+":20010")
+	if err != nil {
+		fmt.Println(err)
+	}
 
-		addr, err := net.ResolveUDPAddr("udp", ":20010")
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
+	addr, err := net.ResolveUDPAddr("udp", ":20010")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 
-		conn, err := net.ListenUDP("udp", addr)
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
+	conn, err := net.ListenUDP("udp", addr)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 
-		defer conn.Close()
+	defer conn.Close()
 
-		buffer := make([]byte, 1024)
-		conn.SetReadDeadline(time.Now().Add(1 * time.Second))
-		n, _, err := conn.ReadFromUDP(buffer)
-		if err != nil {
-			fmt.Println(err)
-		}
+	buffer := make([]byte, 1024)
+	conn.SetReadDeadline(time.Now().Add(1 * time.Second))
+	n, _, err := conn.ReadFromUDP(buffer)
+	if err != nil {
+		fmt.Println(err)
+	}
 
-		fmt.Println(string(buffer[:n]))
+	fmt.Println(string(buffer[:n]))
 
-		msg := OrderPlacedMsg{SourceID: 0, MsgType: "testing type", Order: Order{OrderID: 1234, Floor: 1, Direction: -1}, Priority: 1}
+	msg := OrderPlacedMsg{SourceID: 0, MsgType: "testing type", Order: Order{OrderID: 1234, Floor: 1, Direction: -1}, Priority: 1}
 
-		data, err := json.MarshalIndent(msg, "", " ")
-		if err != nil {
-			fmt.Printf("JSON failed")
-		}
-		fmt.Printf("%s\n", data)
+	data, err := json.MarshalIndent(msg, "", " ")
+	if err != nil {
+		fmt.Printf("JSON failed")
+	}
+	fmt.Printf("%s\n", data)
 
-		var un_msg OrderPlacedMsg
-		json.Unmarshal(data, &un_msg)
+	var un_msg OrderPlacedMsg
+	json.Unmarshal(data, &un_msg)
 
-		fmt.Println(un_msg)
+	fmt.Println(un_msg)
 	*/
 }
