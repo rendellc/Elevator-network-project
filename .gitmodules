@@ -1,0 +1,9 @@
+[submodule "src/elevio"]
+	path = src/elevio
+	url = https://github.com/TTK4145/driver-go
+[submodule "elevator-server"]
+	path = elevator-server
+	url = https://github.com/TTK4145/elevator-server
+[submodule "Simulator-v2"]
+	path = Simulator-v2
+	url = https://github.com/TTK4145/Simulator-v2
