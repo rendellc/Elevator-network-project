@@ -18,7 +18,7 @@ type PeerUpdate struct {
 }
 
 const interval = 15 * time.Millisecond
-const timeout = 50 * time.Millisecond
+const timeout = 1000 * time.Millisecond //50 * time.Millisecond
 
 func Transmitter(port int, transmitEnable <-chan bool, statusCh <-chan msgs.Heartbeat) {
 
@@ -66,10 +66,6 @@ func Receiver(port int, peerUpdateCh chan<- PeerUpdate /*, statusCh chan<- msgs.
 		data := buf[:n]
 		var heartbeat msgs.Heartbeat
 		json.Unmarshal(data, &heartbeat)
-
-		//go func(heartbeat msgs.Heartbeat){
-		//	statusCh <- heartbeat
-		//}(heartbeat)
 
 		id := heartbeat.SourceID
 

@@ -26,8 +26,8 @@ func main() {
 		heartbeatRecvCh := make(chan Heartbeat)
 	*/
 
-	//peerTxEnable := make(chan bool)
-	//peerStatusSendCh := make(chan []byte)
+	peerTxEnable := make(chan bool)
+	peerStatusSendCh := make(chan []byte)
 	peerStatusCh := make(chan msgtype.Heartbeat)
 	peerUpdateCh := make(chan peers.PeerUpdate)
 
@@ -36,10 +36,6 @@ func main() {
 	go peers.Transmitter(20010, "testid", peerTxEnable, peerStatusSendCh)
 	go peers.Receiver(20010, peerUpdateCh, peerStatusCh)
 
-	heartbeat := Heartbeat{SourceID: 3, ElevatorState: 
-	//beat := Heartbeat{SourceID: 3, ElevatorState: MovingUp, AcceptedOrders: []Order{Order{OrderID: 1234, Floor: 1, Direction: Down}}, TakenOrders: []Order{Order{OrderID: 1234, Floor: 1, Direction: Down}}}
-
-	peerStatusSendCh <- jsonbeat
 	fmt.Println("Listening")
 
 	for {
@@ -55,46 +51,4 @@ func main() {
 		}
 	}
 
-	/*
-		err := network.SendBytes([]byte("Message sending test"), server_ip+":20010")
-		if err != nil {
-			fmt.Println(err)
-		}
-
-		addr, err := net.ResolveUDPAddr("udp", ":20010")
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-
-		conn, err := net.ListenUDP("udp", addr)
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-
-		defer conn.Close()
-
-		buffer := make([]byte, 1024)
-		conn.SetReadDeadline(time.Now().Add(1 * time.Second))
-		n, _, err := conn.ReadFromUDP(buffer)
-		if err != nil {
-			fmt.Println(err)
-		}
-
-		fmt.Println(string(buffer[:n]))
-
-		msg := OrderPlacedMsg{SourceID: 0, MsgType: "testing type", Order: Order{OrderID: 1234, Floor: 1, Direction: -1}, Priority: 1}
-
-		data, err := json.MarshalIndent(msg, "", " ")
-		if err != nil {
-			fmt.Printf("JSON failed")
-		}
-		fmt.Printf("%s\n", data)
-
-		var un_msg OrderPlacedMsg
-		json.Unmarshal(data, &un_msg)
-
-		fmt.Println(un_msg)
-	*/
 }
