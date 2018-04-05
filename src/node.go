@@ -1,98 +1,128 @@
 package main
 
 import (
-	//"encoding/json"
+	"./comm/bcast"
+	"./comm/peers"
 	"./msgs"
-	"./network/bcast"
-	"./network/peers"
+	"flag"
 	"fmt"
+	"time"
 )
 
-const server_ip = "129.241.187.38"
+//const server_ip = "129.241.187.38"
+const port = 20010
+const timeout = 1 * time.Second
+
+var id_ptr = flag.String("id", "noid", "ID for node")
 
 func main() {
-	//msg1 := OrderPlacedMsg{SourceID: 0, MsgType: "testing type", Order: Order{OrderID: 1234, Floor: 1, Direction: -1}, Priority: 1}
-	//msg2 := OrderPlacedAck{SourceID: 1, OrderID: 1234, MsgType: "ackack", Score: 666}
+	flag.Parse()
 
 	orderPlacedSendCh := make(chan msgs.OrderPlacedMsg)
 	orderPlacedAckSendCh := make(chan msgs.OrderPlacedAck)
 	takeOrderAckSendCh := make(chan msgs.TakeOrderAck)
 	takeOrderSendCh := make(chan msgs.TakeOrderMsg)
-	go bcast.Transmitter(20010, orderPlacedSendCh, orderPlacedAckSendCh, takeOrderAckSendCh, takeOrderSendCh)
+	go bcast.Transmitter(port, orderPlacedSendCh, orderPlacedAckSendCh, takeOrderAckSendCh, takeOrderSendCh)
 
 	orderPlacedRecvCh := make(chan msgs.OrderPlacedMsg)
 	orderPlacedAckRecvCh := make(chan msgs.OrderPlacedAck)
 	takeOrderAckRecvCh := make(chan msgs.TakeOrderAck)
 	takeOrderRecvCh := make(chan msgs.TakeOrderMsg)
-	go bcast.Receiver(20010, orderPlacedRecvCh, orderPlacedAckRecvCh, takeOrderAckRecvCh, takeOrderRecvCh)
+	go bcast.Receiver(port, orderPlacedRecvCh, orderPlacedAckRecvCh, takeOrderAckRecvCh, takeOrderRecvCh)
 
 	peerTxEnable := make(chan bool)
 	peerStatusSendCh := make(chan msgs.Heartbeat)
-	go peers.Transmitter(20010, peerTxEnable, peerStatusSendCh)
+	go peers.Transmitter(port, peerTxEnable, peerStatusSendCh)
 
 	//peerStatusCh := make(chan msgs.Heartbeat)
 	peerUpdateCh := make(chan peers.PeerUpdate, 1)
-	go peers.Receiver(20010, peerUpdateCh)
+	go peers.Receiver(port, peerUpdateCh)
 
-	heartbeat := msgs.Heartbeat{SourceID: "1",
+	heartbeat := msgs.Heartbeat{SenderID: *id_ptr,
 		ElevatorState:  msgs.StopDown,
 		AcceptedOrders: []msgs.Order{},
-		TakenOrders:    []msgs.Order{msgs.Order{OrderID: 0, Floor: 3, Direction: msgs.Up}}}
+		TakenOrders:    []msgs.Order{}}
 
 	peerStatusSendCh <- heartbeat
 	fmt.Println("Listening")
 
+	ordersRecieved := make(map[int]msgs.Order)
+	unacknowledgedOrders := make(map[int]msgs.Order)
+
 	for {
 		select {
-		case msgRecv1 := <-orderPlacedRecvCh:
-			fmt.Println(msgRecv1)
-		case msgRecv2 := <-orderPlacedAckRecvCh:
-			fmt.Println(msgRecv2)
+		case msg := <-orderPlacedRecvCh:
+			if msg.SenderID != *id_ptr { // ignore internal msgs
+				// Order transmitted from other node
+				//fmt.Println("[orderPlacedRecvCh]:", msg)
+				// store order
+				if _, ok := ordersRecieved[msg.Order.ID]; ok {
+					fmt.Printf("[orderPlacedRecvCh]: Warning, order id %v already exists, new order ignored", msg.Order.ID)
+					break
+				}
+				ordersRecieved[msg.Order.ID] = msg.Order
+				if msg.RecieverID == *id_ptr {
+					fmt.Println("[orderPlacedRecvCh]:", msg)
+					ack := msgs.OrderPlacedAck{SenderID: *id_ptr,
+						RecieverID: msg.SenderID,
+						Order:      msg.Order,
+						Score:      50} // TODO: scoring system
+					fmt.Printf("[orderPlacedRecvCh]: Sending ack to %v for order %v\n", msg.RecieverID, msg.Order.ID)
+					orderPlacedAckSendCh <- ack
+				}
+			} else {
+				ordersRecieved[msg.Order.ID] = msg.Order
+				// This node has sent out an order. Needs to listen for acks
+				if _, ok := unacknowledgedOrders[msg.Order.ID]; ok {
+					fmt.Printf("[orderPlacedRecvCh]: Warning, ack wait id %i already exists, new order ignored\n", msg.Order.ID)
+				} else {
+					unacknowledgedOrders[msg.Order.ID] = msg.Order
+				}
+			}
+		case msg := <-orderPlacedAckRecvCh:
+			if msg.RecieverID == *id_ptr { // ignore msgs to other nodes
+				// Acknowledgement recieved from other node
+				fmt.Println("[orderPlacedAckRecvCh]:", msg)
+
+				if _, ok := unacknowledgedOrders[msg.Order.ID]; !ok {
+					break // Not waiting for acknowledgment
+				}
+
+				fmt.Println("[orderPlacedAckRecvCh]: Acknowledgment recieved")
+				delete(unacknowledgedOrders, msg.Order.ID)
+			}
 		case peerUpdate := <-peerUpdateCh:
-			fmt.Println(peerUpdate)
+			if len(peerUpdate.Lost) > 0 {
+				fmt.Println("[peerUpdateCh]: Lost: ", peerUpdate.Lost)
+			}
+			if len(peerUpdate.New) > 0 {
+				fmt.Println("[peerUpdateCh]: New: ", peerUpdate.New)
+			}
 		}
+
+		if len(ordersRecieved) > 0 {
+			fmt.Println("ordersRecieved map")
+			for key, value := range ordersRecieved {
+				var _ = value
+				fmt.Printf("\t%v -> %+v\n", key, value)
+
+				// TODO: Communicate order to orderhandler
+
+				//delete(ordersRecieved, key)
+			}
+		}
+
+		if len(unacknowledgedOrders) > 0 {
+			fmt.Println("unacknowledgedOrders map")
+			for key, value := range unacknowledgedOrders {
+				var _ = value
+				fmt.Printf("\t%v -> %+v\n", key, value)
+
+				// TODO: Logic
+
+				//delete(unacknowledgedOrders, key)
+			}
+		}
+
 	}
-
-	/*
-		err := network.SendBytes([]byte("Message sending test"), server_ip+":20010")
-		if err != nil {
-			fmt.Println(err)
-		}
-
-		addr, err := net.ResolveUDPAddr("udp", ":20010")
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-
-		conn, err := net.ListenUDP("udp", addr)
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-
-		defer conn.Close()
-
-		buffer := make([]byte, 1024)
-		conn.SetReadDeadline(time.Now().Add(1 * time.Second))
-		n, _, err := conn.ReadFromUDP(buffer)
-		if err != nil {
-			fmt.Println(err)
-		}
-
-		fmt.Println(string(buffer[:n]))
-
-		msg := OrderPlacedMsg{SourceID: 0, MsgType: "testing type", Order: Order{OrderID: 1234, Floor: 1, Direction: -1}, Priority: 1}
-
-		data, err := json.MarshalIndent(msg, "", " ")
-		if err != nil {
-			fmt.Printf("JSON failed")
-		}
-		fmt.Printf("%s\n", data)
-
-		var un_msg OrderPlacedMsg
-		json.Unmarshal(data, &un_msg)
-
-		fmt.Println(un_msg)
-	*/
 }

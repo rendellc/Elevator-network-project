@@ -7,6 +7,13 @@ const (
 	Down
 )
 
+type OrderType string
+
+const (
+	CabCall  OrderType = "cab"
+	HallCall OrderType = "hall"
+)
+
 type ElevatorState int
 
 const (
@@ -17,38 +24,39 @@ const (
 )
 
 type Order struct {
-	OrderID   int       `json:"order_id"`
+	ID        int       `json:"order_id"`
 	Floor     int       `json:"floor"`
 	Direction Direction `json:"direction"`
 }
 
 type OrderPlacedMsg struct {
-	SourceID int    `json:"source_id"`
-	MsgType  string `json:"msg_type"`
-	Order    Order  `json:"order"`
-	Priority int    `json:"priority"`
+	SenderID   string `json:"sender_id"`
+	RecieverID string `json:"reciever_id"`
+	Order      Order  `json:"order"`
+	Priority   int    `json:"priority"`
 }
 
 type OrderPlacedAck struct {
-	SourceID int    `json:"source_id"`
-	OrderID  int    `json:"order_id"`
-	MsgType  string `json:"msg_type"`
-	Score    int    `json:"score"`
+	SenderID   string `json:"sender_id"`
+	RecieverID string `json:"reciever_id"`
+	Order      Order  `json:"order"`
+	Score      int    `json:"score"`
 }
 
 type TakeOrderAck struct {
-	OrderID int    `json:"order_id"`
-	MsgType string `json:"msg_type"`
+	SenderID   string `json:"sender_id"`
+	RecieverID string `json:"reciever_id"`
+	Order      Order  `json:"order"`
 }
 
 type Heartbeat struct {
-	SourceID       string        `json:"source_id"`
+	SenderID       string        `json:"sender_id"`
 	ElevatorState  ElevatorState `json:"elevator_state"`
 	AcceptedOrders []Order       `json:"accepted_orders"`
 	TakenOrders    []Order       `json:"taken_orders"`
 }
 
 type TakeOrderMsg struct {
-	Order Order `json:"order"`
-	CmdID int   `json:"cmd_id"` // specify the elevator that should take the order
+	Order Order  `json:"order"`
+	CmdID string `json:"cmd_id"` // specify the elevator that should take the order
 }
