@@ -50,8 +50,8 @@ type TakeOrderAck struct {
 }
 
 type ElevatorStatus struct {
-	Floor      int
 	Direction  Direction
+	Floor      int
 	ElevatorID string
 }
 
