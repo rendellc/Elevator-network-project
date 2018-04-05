@@ -38,78 +38,91 @@ func main() {
 	peerUpdateCh := make(chan peers.PeerUpdate, 1)
 	go peers.Receiver(port, peerUpdateCh)
 
-	heartbeat := msgs.Heartbeat{SourceID: *id_ptr,
+	heartbeat := msgs.Heartbeat{SenderID: *id_ptr,
 		ElevatorState:  msgs.StopDown,
 		AcceptedOrders: []msgs.Order{},
-		TakenOrders:    []msgs.Order{msgs.Order{ID: 0, Floor: 3, Direction: msgs.Up}}}
+		TakenOrders:    []msgs.Order{}}
 
 	peerStatusSendCh <- heartbeat
 	fmt.Println("Listening")
 
-	orders_recieved := make(map[int]msgs.Order)
-	waiting_for_ack := make(map[int]msgs.Order)
+	ordersRecieved := make(map[int]msgs.Order)
+	unacknowledgedOrders := make(map[int]msgs.Order)
 
 	for {
 		select {
 		case msg := <-orderPlacedRecvCh:
-			if msg.SourceID != *id_ptr {
+			if msg.SenderID != *id_ptr { // ignore internal msgs
 				// Order transmitted from other node
-				fmt.Println("[orderPlacedRecvCh]:", msg)
+				//fmt.Println("[orderPlacedRecvCh]:", msg)
 				// store order
-				if _, ok := orders_recieved[msg.Order.ID]; ok {
-					fmt.Printf("[orderPlacedRecvCh]: Warning, order id %i already exists, new order ignored", msg.Order.ID)
-				} else {
-					orders_recieved[msg.Order.ID] = msg.Order
+				if _, ok := ordersRecieved[msg.Order.ID]; ok {
+					fmt.Printf("[orderPlacedRecvCh]: Warning, order id %v already exists, new order ignored", msg.Order.ID)
+					break
 				}
-
-				ack := msgs.OrderPlacedAck{SourceID: *id_ptr,
-					Order: msg.Order,
-					Score: 50} // TODO: scoring system
-				orderPlacedAckSendCh <- ack
+				ordersRecieved[msg.Order.ID] = msg.Order
+				if msg.RecieverID == *id_ptr {
+					fmt.Println("[orderPlacedRecvCh]:", msg)
+					ack := msgs.OrderPlacedAck{SenderID: *id_ptr,
+						RecieverID: msg.SenderID,
+						Order:      msg.Order,
+						Score:      50} // TODO: scoring system
+					fmt.Printf("[orderPlacedRecvCh]: Sending ack to %v for order %v\n", msg.RecieverID, msg.Order.ID)
+					orderPlacedAckSendCh <- ack
+				}
 			} else {
+				ordersRecieved[msg.Order.ID] = msg.Order
 				// This node has sent out an order. Needs to listen for acks
-				if _, ok := waiting_for_ack[msg.Order.ID]; ok {
-					fmt.Printf("[orderPlacedRecvCh]: Warning, ack wait id %i already exists, new order ignored", msg.Order.ID)
+				if _, ok := unacknowledgedOrders[msg.Order.ID]; ok {
+					fmt.Printf("[orderPlacedRecvCh]: Warning, ack wait id %i already exists, new order ignored\n", msg.Order.ID)
 				} else {
-					waiting_for_ack[msg.Order.ID] = msg.Order
+					unacknowledgedOrders[msg.Order.ID] = msg.Order
 				}
 			}
 		case msg := <-orderPlacedAckRecvCh:
-			if msg.SourceID != *id_ptr { // ignore internal msgs
+			if msg.RecieverID == *id_ptr { // ignore msgs to other nodes
 				// Acknowledgement recieved from other node
 				fmt.Println("[orderPlacedAckRecvCh]:", msg)
 
-				if _, ok := waiting_for_ack[msg.Order.ID]; ok {
+				if _, ok := unacknowledgedOrders[msg.Order.ID]; !ok {
 					break // Not waiting for acknowledgment
 				}
 
-				fmt.Println("[orderPlacedAckRecvCh]: Expected acknowledgment recieved")
-
+				fmt.Println("[orderPlacedAckRecvCh]: Acknowledgment recieved")
+				delete(unacknowledgedOrders, msg.Order.ID)
 			}
 		case peerUpdate := <-peerUpdateCh:
-			fmt.Println("[peerUpdateCh]:", peerUpdate)
-		}
-
-		if len(orders_recieved) > 0 {
-			fmt.Println("orders_recieved map")
-			for key, value := range orders_recieved {
-				fmt.Printf("\t%v -> %+v\n", key, value)
-
-				// TODO: Communicate order to fsm
-
-				delete(orders_recieved, key)
+			if len(peerUpdate.Lost) > 0 {
+				fmt.Println("[peerUpdateCh]: Lost: ", peerUpdate.Lost)
+			}
+			if len(peerUpdate.New) > 0 {
+				fmt.Println("[peerUpdateCh]: New: ", peerUpdate.New)
 			}
 		}
 
-		if len(waiting_for_ack) > 0 {
-			fmt.Println("waiting_for_ack map")
-			for key, value := range waiting_for_ack {
+		if len(ordersRecieved) > 0 {
+			fmt.Println("ordersRecieved map")
+			for key, value := range ordersRecieved {
+				var _ = value
+				fmt.Printf("\t%v -> %+v\n", key, value)
+
+				// TODO: Communicate order to orderhandler
+
+				//delete(ordersRecieved, key)
+			}
+		}
+
+		if len(unacknowledgedOrders) > 0 {
+			fmt.Println("unacknowledgedOrders map")
+			for key, value := range unacknowledgedOrders {
+				var _ = value
 				fmt.Printf("\t%v -> %+v\n", key, value)
 
 				// TODO: Logic
 
-				delete(waiting_for_ack, key)
+				//delete(unacknowledgedOrders, key)
 			}
 		}
+
 	}
 }

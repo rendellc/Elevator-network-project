@@ -67,7 +67,7 @@ func Receiver(port int, peerUpdateCh chan<- PeerUpdate /*, statusCh chan<- msgs.
 		var heartbeat msgs.Heartbeat
 		json.Unmarshal(data, &heartbeat)
 
-		id := heartbeat.SourceID
+		id := heartbeat.SenderID
 
 		// Adding new connection
 		p.New = ""

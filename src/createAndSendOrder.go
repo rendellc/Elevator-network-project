@@ -14,7 +14,7 @@ var rnd = rand.New(rand.NewSource(time.Now().UnixNano()))
 
 // Flags
 var port_ptr = flag.Int("port", -1, "port for broadcast")
-var sourceID_ptr = flag.String("sid", "noid", "ID for node")
+var senderID_ptr = flag.String("sid", "noid", "ID for node")
 var recieverID_ptr = flag.String("rid", "noid", "ID for node")
 var orderID_ptr = flag.Int("oid", rnd.Intn(10000), "ID for order")
 var floor_ptr = flag.Int("floor", -1, "Floor")
@@ -38,7 +38,7 @@ func main() {
 
 	fmt.Println("Order sent ->")
 	fmt.Printf("\tPort: -port=%v\n", *port_ptr)
-	fmt.Printf("\tSourceID: -sid=%v\n", *sourceID_ptr)
+	fmt.Printf("\tSenderID: -sid=%v\n", *senderID_ptr)
 	fmt.Printf("\tRecieverID: -rid=%v\n", *recieverID_ptr)
 	fmt.Printf("\tOrderID: -oid=%v\n", *orderID_ptr)
 	fmt.Printf("\tFloor: -floor=%+v\n", *floor_ptr)
@@ -53,7 +53,7 @@ func main() {
 	//takeOrderAckSendCh := make(chan msgs.TakeOrderAck)
 	//takeOrderSendCh := make(chan msgs.TakeOrderMsg)
 
-	msg := msgs.OrderPlacedMsg{SourceID: *sourceID_ptr,
+	msg := msgs.OrderPlacedMsg{SenderID: *senderID_ptr, RecieverID: *recieverID_ptr,
 		Order:    msgs.Order{ID: *orderID_ptr, Floor: *floor_ptr, Direction: *direction_ptr},
 		Priority: *priority_ptr}
 

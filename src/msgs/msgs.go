@@ -30,24 +30,27 @@ type Order struct {
 }
 
 type OrderPlacedMsg struct {
-	SourceID string `json:"source_id"`
-	Order    Order  `json:"order"`
-	Priority int    `json:"priority"`
+	SenderID   string `json:"sender_id"`
+	RecieverID string `json:"reciever_id"`
+	Order      Order  `json:"order"`
+	Priority   int    `json:"priority"`
 }
 
 type OrderPlacedAck struct {
-	SourceID string `json:"source_id"`
-	Order    Order  `json:"order"`
-	Score    int    `json:"score"`
+	SenderID   string `json:"sender_id"`
+	RecieverID string `json:"reciever_id"`
+	Order      Order  `json:"order"`
+	Score      int    `json:"score"`
 }
 
 type TakeOrderAck struct {
-	SourceID string `json:"source_id"`
-	Order    Order  `json:"order"`
+	SenderID   string `json:"sender_id"`
+	RecieverID string `json:"reciever_id"`
+	Order      Order  `json:"order"`
 }
 
 type Heartbeat struct {
-	SourceID       string        `json:"source_id"`
+	SenderID       string        `json:"sender_id"`
 	ElevatorState  ElevatorState `json:"elevator_state"`
 	AcceptedOrders []Order       `json:"accepted_orders"`
 	TakenOrders    []Order       `json:"taken_orders"`
