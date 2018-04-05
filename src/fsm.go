@@ -12,7 +12,7 @@ const (
     DRIVE
     OPEN_DOOR
 )
-var elevator_state = IDLE
+var elevator_state State//= IDLE
 var elevator_direction elevio.MotorDirection
 var last_floor int
 var move_after_door_closes bool
@@ -20,7 +20,7 @@ var move_after_door_closes bool
 const num_floors = 4 //import
 var order_register_matrix[3][num_floors] bool //initialze as false
 // Door timer variables
-const open_door_time_threshold = 5*time.Second
+const open_door_time_threshold = 3*time.Second
 var door_timer = time.NewTimer(open_door_time_threshold)
 
 // FSM functions

@@ -1,0 +1,4 @@
+Git:
+  To pull submodules:
+    First time: git submodule update --init --recursive
+    Afterwards: git submodule update --recursive
