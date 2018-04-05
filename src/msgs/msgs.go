@@ -49,11 +49,16 @@ type TakeOrderAck struct {
 	Order      Order  `json:"order"`
 }
 
+type ElevatorStatus struct {
+	Floor      int
+	Direction  Direction
+	ElevatorID string
+}
+
 type Heartbeat struct {
 	SenderID       string        `json:"sender_id"`
 	ElevatorState  ElevatorState `json:"elevator_state"`
 	AcceptedOrders []Order       `json:"accepted_orders"`
-	TakenOrders    []Order       `json:"taken_orders"`
 }
 
 type TakeOrderMsg struct {
