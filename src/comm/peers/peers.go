@@ -12,9 +12,14 @@ import (
 )
 
 type PeerUpdate struct {
-	Peers []string
+	Peers msgs.ElevatorStatusSlice
 	New   string
-	Lost  []string
+	Lost  msgs.HeartbeatSlice
+}
+
+type observation struct {
+	Time      time.Time
+	Heartbeat msgs.Heartbeat
 }
 
 const interval = 100 * time.Millisecond
@@ -54,7 +59,7 @@ func Receiver(port int, peerUpdateCh chan<- PeerUpdate /*, statusCh chan<- msgs.
 
 	var buf [1024]byte
 	var p PeerUpdate
-	lastSeen := make(map[string]time.Time)
+	lastSeen := make(map[string]observation)
 
 	conn := conn.DialBroadcastUDP(port)
 
@@ -77,29 +82,29 @@ func Receiver(port int, peerUpdateCh chan<- PeerUpdate /*, statusCh chan<- msgs.
 				updated = true
 			}
 
-			lastSeen[id] = time.Now()
+			lastSeen[id] = observation{Time: time.Now(), Heartbeat: heartbeat}
 		}
 
 		// Removing dead connection
-		p.Lost = make([]string, 0)
+		p.Lost = make(msgs.HeartbeatSlice, 0)
 		for k, v := range lastSeen {
-			if time.Now().Sub(v) > timeout {
+			if time.Now().Sub(v.Time) > timeout {
 				updated = true
-				p.Lost = append(p.Lost, k)
+				p.Lost = append(p.Lost, v.Heartbeat)
 				delete(lastSeen, k)
 			}
 		}
 
 		// Sending update
 		if updated {
-			p.Peers = make([]string, 0, len(lastSeen))
+			p.Peers = make(msgs.ElevatorStatusSlice, 0, len(lastSeen))
 
-			for k, _ := range lastSeen {
-				p.Peers = append(p.Peers, k)
+			for _, v := range lastSeen {
+				p.Peers = append(p.Peers, v.Heartbeat.Status)
 			}
 
-			sort.Strings(p.Peers)
-			sort.Strings(p.Lost)
+			sort.Sort(p.Peers)
+			sort.Sort(p.Lost)
 			peerUpdateCh <- p
 		}
 	}
