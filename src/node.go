@@ -34,27 +34,40 @@ func main() {
 	peerStatusSendCh := make(chan msgs.Heartbeat)
 	go peers.Transmitter(port, peerTxEnable, peerStatusSendCh)
 
-	//peerStatusCh := make(chan msgs.Heartbeat)
 	peerUpdateCh := make(chan peers.PeerUpdate, 1)
 	go peers.Receiver(port, peerUpdateCh)
 
 	heartbeat := msgs.Heartbeat{SenderID: *id_ptr,
 		ElevatorState:  msgs.StopDown,
-		AcceptedOrders: []msgs.Order{},
-		TakenOrders:    []msgs.Order{}}
+		AcceptedOrders: []msgs.Order{}}
 
 	peerStatusSendCh <- heartbeat
-	fmt.Println("Listening")
+
+	// OrderHandler channels
+	downedElevatorsCh := make(chan []msgs.Heartbeat)
 
 	ordersRecieved := make(map[int]msgs.Order)
 	unacknowledgedOrders := make(map[int]msgs.Order)
 
+	// pseudo-orderHandler
+	go func(downedElevatorsCh <-chan []msgs.Heartbeat) {
+		for {
+			select {
+			case downedElevators := <-downedElevatorsCh:
+				for _, elevator := range downedElevators {
+					fmt.Printf("[orderHandler]: down: %+v\n", elevator)
+				}
+			}
+		}
+	}(downedElevatorsCh)
+
+	fmt.Println("Listening")
 	for {
 		select {
 		case msg := <-orderPlacedRecvCh:
 			if msg.SenderID != *id_ptr { // ignore internal msgs
 				// Order transmitted from other node
-				//fmt.Println("[orderPlacedRecvCh]:", msg)
+
 				// store order
 				if _, ok := ordersRecieved[msg.Order.ID]; ok {
 					fmt.Printf("[orderPlacedRecvCh]: Warning, order id %v already exists, new order ignored", msg.Order.ID)
@@ -67,7 +80,7 @@ func main() {
 						RecieverID: msg.SenderID,
 						Order:      msg.Order,
 						Score:      50} // TODO: scoring system
-					fmt.Printf("[orderPlacedRecvCh]: Sending ack to %v for order %v\n", msg.RecieverID, msg.Order.ID)
+					fmt.Printf("[orderPlacedRecvCh]: Sending ack to %v for order %v\n", ack.RecieverID, ack.Order.ID)
 					orderPlacedAckSendCh <- ack
 				}
 			} else {
@@ -82,18 +95,28 @@ func main() {
 		case msg := <-orderPlacedAckRecvCh:
 			if msg.RecieverID == *id_ptr { // ignore msgs to other nodes
 				// Acknowledgement recieved from other node
-				fmt.Println("[orderPlacedAckRecvCh]:", msg)
-
 				if _, ok := unacknowledgedOrders[msg.Order.ID]; !ok {
 					break // Not waiting for acknowledgment
 				}
 
 				fmt.Println("[orderPlacedAckRecvCh]: Acknowledgment recieved")
 				delete(unacknowledgedOrders, msg.Order.ID)
+
+				// TODO: it is now safe to accept order since more than one elevator know about it
 			}
 		case peerUpdate := <-peerUpdateCh:
 			if len(peerUpdate.Lost) > 0 {
-				fmt.Println("[peerUpdateCh]: Lost: ", peerUpdate.Lost)
+
+				var downedElevators []msgs.Heartbeat
+				for _, elevatorID := range peerUpdate.Lost {
+					downedHeartbeat := msgs.Heartbeat{SenderID: elevatorID,
+						ElevatorState:  msgs.StopDown,
+						AcceptedOrders: []msgs.Order{}}
+
+					downedElevators = append(downedElevators, downedHeartbeat)
+				}
+
+				downedElevatorsCh <- downedElevators
 			}
 			if len(peerUpdate.New) > 0 {
 				fmt.Println("[peerUpdateCh]: New: ", peerUpdate.New)
