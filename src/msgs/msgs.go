@@ -46,16 +46,11 @@ type Debug_placeOrderMsg PlaceOrderMsg
 type Debug_acceptOrderMsg SafeOrderMsg
 
 type ElevatorStatus struct {
-	ID        string    `json:"id"`
+	ID string `json:"id"`
+
 	Floor     int       `json:"floor"`
 	Direction Direction `json:"direction"`
 	Stopped   bool      `json:"stopped"`
-}
-
-type ElevatorStatus struct {
-	Direction  Direction
-	Floor      int
-	ElevatorID string
 }
 
 type Heartbeat struct {
