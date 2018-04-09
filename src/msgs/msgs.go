@@ -3,7 +3,8 @@ package msgs
 type Direction int
 
 const (
-	Up Direction = iota
+	Up Direction = -1 + iota
+	Stop
 	Down
 )
 
@@ -12,15 +13,6 @@ type OrderType string
 const (
 	CabCall  OrderType = "cab"
 	HallCall OrderType = "hall"
-)
-
-type ElevatorState int
-
-const (
-	MovingUp ElevatorState = iota
-	MovingDown
-	StopUp
-	StopDown
 )
 
 type Order struct {
@@ -95,6 +87,8 @@ func (d Direction) String() string {
 		return "↑"
 	case Down:
 		return "↓"
+	case Stop:
+		return "⛔"
 	}
 	return "-invalidDirection-"
 }

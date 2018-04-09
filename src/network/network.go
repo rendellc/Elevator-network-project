@@ -19,7 +19,7 @@ const giveupAckwaitTimeout = 5 * time.Second
 
 func Launch(id string,
 	thisElevatorStatusCh <-chan msgs.ElevatorStatus, otherElevatorsStatusCh chan<- []msgs.ElevatorStatus, downedElevatorsCh chan<- []msgs.Heartbeat,
-	thisTakeOrderCh chan<- msgs.TakeOrderMsg, otherTakeOrderCh <-chan msgs.TakeOrderMsg,
+	placeOrderCh <-chan msgs.Order, thisTakeOrderCh chan<- msgs.TakeOrderMsg, otherTakeOrderCh <-chan msgs.TakeOrderMsg,
 	safeOrderCh chan<- msgs.SafeOrderMsg, completedOrderCh <-chan msgs.Order) {
 
 	orderPlacedSendCh := make(chan msgs.PlaceOrderMsg)
@@ -76,6 +76,8 @@ func Launch(id string,
 					placeUnackedOrders[msg.Order.ID] = time.Now()
 				}
 			}
+		case order := <-placeOrderCh:
+			orderPlacedSendCh <- msgs.PlaceOrderMsg{SenderID: id, Order: order}
 		case msg := <-orderPlacedAckRecvCh:
 			if msg.RecieverID == id { // ignore msgs to other nodes
 				// Acknowledgement recieved from other node
@@ -182,7 +184,7 @@ func Launch(id string,
 
 // pseudo-orderHandler and fsm
 func PseudoOrderHandlerAndFsm(id string, thisElevatorStatusCh chan<- msgs.ElevatorStatus, otherElevatorsStatusCh <-chan []msgs.ElevatorStatus, downedElevatorsCh <-chan []msgs.Heartbeat,
-	thisTakeOrderCh <-chan msgs.TakeOrderMsg, otherTakeOrderCh chan<- msgs.TakeOrderMsg,
+	placeOrderCh chan<- msgs.Order, thisTakeOrderCh <-chan msgs.TakeOrderMsg, otherTakeOrderCh chan<- msgs.TakeOrderMsg,
 	safeOrderCh <-chan msgs.SafeOrderMsg, completedOrderCh chan<- msgs.Order) {
 
 	calculateOrderScore := func(status msgs.ElevatorStatus, order msgs.Order) int {
@@ -254,7 +256,7 @@ func PseudoOrderHandlerAndFsm(id string, thisElevatorStatusCh chan<- msgs.Elevat
 		//		}
 
 		//		orders[order.Order.ID] = order.Order
-		//		orderPlacedSendCh <- order
+		//		placeOrderCh <- order
 		//	}
 		//case acceptOrder := <-dbg_acceptOrderCh:
 		//	if acceptOrder.RecieverID == id {
