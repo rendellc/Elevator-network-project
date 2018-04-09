@@ -53,10 +53,16 @@ type ElevatorStatus struct {
 	Stopped   bool      `json:"stopped"`
 }
 
+type ElevatorStatus struct {
+	Direction  Direction
+	Floor      int
+	ElevatorID string
+}
+
 type Heartbeat struct {
-	SenderID       string         `json:"sender_id"`
-	Status         ElevatorStatus `json:"elevator_status"`
-	AcceptedOrders []Order        `json:"accepted_orders"`
+	SenderID       string        `json:"sender_id"`
+	ElevatorState  ElevatorState `json:"elevator_state"`
+	AcceptedOrders []Order       `json:"accepted_orders"`
 }
 
 // sort.Interface for heartbeat slices
