@@ -42,11 +42,11 @@ func main() {
 	fmt.Printf("\tDirection: -dir=%+v\n", *direction_ptr)
 	fmt.Printf("\tOrderType: -type=%+v\n", *orderType_ptr)
 
-	orderPlacedSendCh := make(chan msgs.OrderPlacedMsg)
+	orderPlacedSendCh := make(chan msgs.PlaceOrderMsg)
 
 	go bcast.Transmitter(*port_ptr, orderPlacedSendCh)
 
-	msg := msgs.OrderPlacedMsg{SenderID: *senderID_ptr,
+	msg := msgs.PlaceOrderMsg{SenderID: *senderID_ptr,
 		Order: msgs.Order{ID: *orderID_ptr, Floor: *floor_ptr, Direction: *direction_ptr}}
 
 	orderPlacedSendCh <- msg

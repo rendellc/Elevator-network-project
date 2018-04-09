@@ -44,7 +44,7 @@ func main() {
 
 	go bcast.Transmitter(*port_ptr, acceptOrderCh)
 
-	msg := msgs.Debug_acceptOrderMsg{RecieverID: *elevatorID_ptr, OrderID: *orderID_ptr}
+	msg := msgs.Debug_acceptOrderMsg{RecieverID: *elevatorID_ptr, Order: msgs.Order{ID: *orderID_ptr}}
 
 	acceptOrderCh <- msg
 

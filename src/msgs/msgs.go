@@ -29,29 +29,21 @@ type Order struct {
 	Direction Direction `json:"direction"`
 }
 
-type OrderPlacedMsg struct {
-	SenderID string `json:"sender_id"`
-	Order    Order  `json:"order"`
-}
-
-type OrderPlacedAck struct {
-	SenderID   string `json:"sender_id"`
-	RecieverID string `json:"reciever_id"`
-	Order      Order  `json:"order"`
-	Score      int    `json:"score"`
-}
-
-type TakeOrderMsg struct {
-	SenderID string `json:"sender_id"`
-	CmdID    string `json:"cmd_id"` // specify the elevator that should take the order
-	Order    Order  `json:"order"`
-}
-
-type TakeOrderAck struct {
+type OrderMsg struct {
 	SenderID   string `json:"sender_id"`
 	RecieverID string `json:"reciever_id"`
 	Order      Order  `json:"order"`
 }
+
+type PlaceOrderMsg OrderMsg
+type OrderPlacedAck OrderMsg
+type TakeOrderMsg OrderMsg
+type TakeOrderAck OrderMsg
+type AcceptOrderMsg OrderMsg
+type CompleteOrderMsg OrderMsg
+
+type Debug_placeOrderMsg PlaceOrderMsg
+type Debug_acceptOrderMsg AcceptOrderMsg
 
 type ElevatorStatus struct {
 	ID        string    `json:"id"`
@@ -64,16 +56,6 @@ type Heartbeat struct {
 	SenderID       string         `json:"sender_id"`
 	Status         ElevatorStatus `json:"elevator_status"`
 	AcceptedOrders []Order        `json:"accepted_orders"`
-}
-
-type Debug_placeOrderMsg struct {
-	RecieverID string `json:"reciever_id"`
-	Order      Order  `json:"order"`
-}
-
-type Debug_acceptOrderMsg struct {
-	RecieverID string `json:"reciever_id"`
-	OrderID    int    `json:"order"`
 }
 
 // sort.Interface for heartbeat slices
