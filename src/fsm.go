@@ -10,117 +10,180 @@ type State int
 const (
     IDLE    State = iota
     DRIVE
-    OPEN_DOOR
+    DOOR_OPEN
 )
-var elevator_state = IDLE
-var elevator_direction elevio.MotorDirection
-var last_floor int
-var move_after_door_closes bool
 // Intern order handle variables
-const num_floors = 4 //import
-var order_register_matrix[3][num_floors] bool //initialze as false
+const N_FLOORS = 4 //import
+const N_BUTTONS = 3
+var order_register_matrix[N_BUTTONS][N_FLOORS] bool //initialze as false
 // Door timer variables
-const open_door_time_threshold = 5*time.Second
-var door_timer = time.NewTimer(open_door_time_threshold)
+const door_open_time_threshold = 3.0
+var door_timer = time.NewTimer(door_open_time_threshold)
+
+type Elevator struct {
+    Floor int
+    Dirn elevio.MotorDirection
+    Orders[N_FLOORS][N_BUTTONS] bool
+    State State
+}
 
 // FSM functions
-func initalize_state(drv_floor_sensor <-chan int) {
+func initalize_state(elev *Elevator, drv_floor_sensor <-chan int) {
   // Add timer? After timer goes out, then drive down.
   fmt.Println("Initializing")
   elevio.SetMotorDirection(elevio.MD_Down)
-  last_floor = <- drv_floor_sensor
-  set_state_to_idle()
-  elevio.SetFloorIndicator(last_floor)
+  elev.Floor = <- drv_floor_sensor
+  elev.Dirn = elevio.MD_Stop
+  set_state_to_idle(elev)
+  elevio.SetFloorIndicator(elev.Floor)
 }
-func set_state_to_open_door(){
-  elevator_state = OPEN_DOOR
+
+func set_state_to_door_open(elev *Elevator){
+  elev.State = DOOR_OPEN
   elevio.SetMotorDirection(elevio.MD_Stop)
   elevio.SetDoorOpenLamp(true)
-  door_timer.Reset(open_door_time_threshold)
-  move_after_door_closes = false
+  door_timer.Reset(door_open_time_threshold*time.Second)
 }
-func set_state_to_drive(direction elevio.MotorDirection){
-  elevator_state = DRIVE
-  elevator_direction = direction
-  elevio.SetMotorDirection(direction)
+
+func set_state_to_drive(elev *Elevator){
+  elev.State = DRIVE
+  elevio.SetMotorDirection(elev.Dirn)
 }
-func set_state_to_idle(){
-  elevator_state = IDLE
-  elevator_direction = elevio.MD_Stop
-  elevio.SetMotorDirection(elevator_direction)
+
+func set_state_to_idle(elev *Elevator){
+  elev.State = IDLE
+  elevio.SetMotorDirection(elev.Dirn)
 }
-func update_elevator_direction_after_door_closes(){
-  if elevator_state==OPEN_DOOR && !move_after_door_closes {
-    if is_order_upstairs(last_floor) && (elevator_direction == elevio.MD_Up ||
-      elevator_direction == elevio.MD_Stop ||
-      !is_order_downstairs(last_floor)){
-        elevator_direction = elevio.MD_Up
-        move_after_door_closes = true
-    } else if is_order_downstairs(last_floor) &&
-    (elevator_direction == elevio.MD_Down || elevator_direction == elevio.MD_Stop ||
-      !is_order_upstairs(last_floor)){
-        elevator_direction = elevio.MD_Down
-        move_after_door_closes = true
+
+func is_order_upstairs(elev Elevator) bool {
+  for floor := elev.Floor+1; floor < N_FLOORS; floor++ {
+    for button := 0; button < N_BUTTONS; button++ {
+      if elev.Orders[floor][button] {
+        return true
       }
+    }
+  }
+  return false
+}
+
+func is_order_downstairs(elev Elevator) bool {
+  for floor := 0; floor < elev.Floor; floor++ {
+    for button := 0; button < N_BUTTONS; button++ {
+      if elev.Orders[floor][button] {
+        return true
+      }
+    }
+  }
+  return false
+}
+
+func elev_should_open_door(elev Elevator) bool{
+  if elev.Dirn == elevio.MD_Up{
+    if elev.Orders[elev.Floor][elevio.BT_Cab] ||
+    elev.Orders[elev.Floor][elevio.BT_HallUp] ||
+    !is_order_upstairs(elev) && elev.Orders[elev.Floor][elevio.BT_HallDown]{
+      return true
+    }
+  }else if elev.Dirn == elevio.MD_Down{
+    if elev.Orders[elev.Floor][elevio.BT_Cab] ||
+    elev.Orders[elev.Floor][elevio.BT_HallDown] ||
+    !is_order_downstairs(elev) && elev.Orders[elev.Floor][elevio.BT_HallUp]{
+      return true
+    }
+  }else { //different from files online
+    if elev.Orders[elev.Floor][elevio.BT_Cab] ||
+    elev.Orders[elev.Floor][elevio.BT_HallUp] ||
+    elev.Orders[elev.Floor][elevio.BT_HallDown] {
+      return true
+    }
+  }
+  return  false
+}
+// Intern order handler
+func update_elevator_direction(elev *Elevator){
+  if elev.Dirn == elevio.MD_Up {
+    if !is_order_upstairs(*elev){
+      if is_order_downstairs(*elev){
+        elev.Dirn = elevio.MD_Down
+      }else{
+        elev.Dirn = elevio.MD_Stop
+      }
+    }
+  }else if elev.Dirn == elevio.MD_Down {
+    if !is_order_downstairs(*elev){
+      if is_order_upstairs(*elev){
+        elev.Dirn = elevio.MD_Up
+      }else{
+        elev.Dirn = elevio.MD_Stop
+      }
+    }
+  }else{
+    if is_order_upstairs(*elev){
+      elev.Dirn = elevio.MD_Up
+    }else if is_order_downstairs(*elev){
+      elev.Dirn = elevio.MD_Down
+    }
   }
 }
 
-// Intern order handler
-func add_order(button_event elevio.ButtonEvent, turn_light_on bool){
-  fmt.Println("Order added")
-  order_register_matrix[button_event.Button][button_event.Floor]=true
-  elevio.SetButtonLamp(button_event.Button, button_event.Floor, turn_light_on)
-  fmt.Println("Order added")
-}
-func clear_order(button_event elevio.ButtonEvent){
-  order_register_matrix[button_event.Button][button_event.Floor]=false
-  elevio.SetButtonLamp(button_event.Button, button_event.Floor, false)
-}
-func get_order_status(button_event elevio.ButtonEvent) bool{
-  return order_register_matrix[button_event.Button][button_event.Floor]
-}
-func is_order_upstairs(current_floor int) bool {
-  for floor := current_floor+1; floor < num_floors; floor++ {
-    for button := 0; button < 3; button++ {
-      if order_register_matrix[button][floor] {
-        return true
-      }
+func clear_requests_at_floor(elev *Elevator){
+  if elev.Dirn == elevio.MD_Up {
+    elev.Orders[elev.Floor][elevio.BT_HallUp]=false
+    elev.Orders[elev.Floor][elevio.BT_Cab]=false
+    if !is_order_upstairs(*elev){
+      elev.Orders[elev.Floor][elevio.BT_HallDown]=false
     }
-  }
-  return false
-}
-func is_order_downstairs(current_floor int) bool {
-  for floor := 0; floor < current_floor; floor++ {
-    for button := 0; button < 3; button++ {
-      if order_register_matrix[button][floor] {
-        return true
-      }
+  }else if elev.Dirn == elevio.MD_Down {
+    elev.Orders[elev.Floor][elevio.BT_HallDown]=false
+    elev.Orders[elev.Floor][elevio.BT_Cab]=false
+    if !is_order_downstairs(*elev){
+      elev.Orders[elev.Floor][elevio.BT_HallUp]=false
     }
+  }else{
+    elev.Orders[elev.Floor][elevio.BT_HallUp]=false
+    elev.Orders[elev.Floor][elevio.BT_HallDown]=false
+    elev.Orders[elev.Floor][elevio.BT_Cab]=false
   }
-  return false
+}
+
+func clear_lights_at_floor(elev Elevator){
+  if elev.Dirn == elevio.MD_Up {
+    elevio.SetButtonLamp(elevio.BT_HallUp, elev.Floor, false)
+    elevio.SetButtonLamp(elevio.BT_Cab, elev.Floor, false)
+    if !is_order_upstairs(elev){
+      elevio.SetButtonLamp(elevio.BT_HallDown, elev.Floor, false)
+    }
+  }else if elev.Dirn == elevio.MD_Down {
+    elevio.SetButtonLamp(elevio.BT_HallDown, elev.Floor, false)
+    elevio.SetButtonLamp(elevio.BT_Cab, elev.Floor, false)
+    if !is_order_downstairs(elev){
+      elevio.SetButtonLamp(elevio.BT_HallUp, elev.Floor, false)
+    }
+  }else{
+    elevio.SetButtonLamp(elevio.BT_HallUp, elev.Floor, false)
+    elevio.SetButtonLamp(elevio.BT_HallDown, elev.Floor, false)
+    elevio.SetButtonLamp(elevio.BT_Cab, elev.Floor, false)
+  }
 }
 
 type OrderEvent struct {
-  ButtonEvent elevio.ButtonEvent
-  AddOrder bool
+  Floor int
+  Button elevio.ButtonType
+  AddOrder bool // =false <-> delete
   TurnLightOn bool
 }
 
-func main(){
-
+func fsm_module(drv_intern_hall_order <-chan OrderEvent, drv_hall_button_event chan<- elevio.ButtonEvent){
   fmt.Println("Lets start")
-  elevio.Init("localhost:15657", num_floors)
+  elevio.Init("localhost:15657", N_FLOORS)
   fmt.Println("Hardware initialized")
   drv_buttons := make(chan elevio.ButtonEvent)
   drv_floor_sensor  := make(chan int)
-  drv_intern_hall_order := make(chan OrderEvent,1)
-  drv_hall_button_event := make(chan elevio.ButtonEvent,1)
-  door_timer.Stop()
+  var elevator Elevator
 
-  //var button_event elevio.ButtonEvent
-
+  //door_timer.Stop()
   go elevio.PollFloorSensor(drv_floor_sensor)
-  initalize_state(drv_floor_sensor)
+  initalize_state(&elevator, drv_floor_sensor)
   go elevio.PollButtons(drv_buttons)
   fmt.Println("Before for loop")
 
@@ -130,109 +193,152 @@ func main(){
       fmt.Println("Button Event")
       if button_event.Button == elevio.BT_Cab{
         fmt.Println("Button Event: Cab order")
-        add_order(button_event, true)
-        switch elevator_state{
+        elevator.Orders[button_event.Floor][button_event.Button]=true
+        elevio.SetButtonLamp(button_event.Button, button_event.Floor, true)
+        fmt.Println("Cab order added and lights turned on")
+        fmt.Println("Estimated completion time: %f", estimated_completion_time(elevator,button_event))
+        switch elevator.State{
         case IDLE:
-          if button_event.Floor == last_floor {
-            set_state_to_open_door()
-            clear_order(button_event)
-            //update_elevator_direction_after_door_closes() //necessary?
-          } else if button_event.Floor > last_floor {
-            set_state_to_drive(elevio.MD_Up)
-            fmt.Println("Going up")
-          } else {
-            set_state_to_drive(elevio.MD_Down)
-            fmt.Println("Going down")
+          if elev_should_open_door(elevator) { //button_event.Floor == last_floor
+            set_state_to_door_open(&elevator)
+            clear_requests_at_floor(&elevator)
+            clear_lights_at_floor(elevator)
+            fmt.Println("Door opens")
+          }else{
+            update_elevator_direction(&elevator)
+            set_state_to_drive(&elevator)
+            fmt.Println("Elevator begins to move")
           }
-        case OPEN_DOOR: // a new order -> extend timer, determine direction
-          update_elevator_direction_after_door_closes()
-          if button_event.Floor == last_floor {
-            door_timer.Reset(open_door_time_threshold)
-            clear_order(button_event)
+        case DOOR_OPEN: // a new order -> extend timer, determine direction
+          if elev_should_open_door(elevator) { //button_event.Floor == last_floor
+            set_state_to_door_open(&elevator)
+            clear_requests_at_floor(&elevator)
+            clear_lights_at_floor(elevator)
+            fmt.Println("Door keeps open")
+          }else{
+            update_elevator_direction(&elevator)
           }
-          //update_elevator_direction_after_door_closes()
-        default:
-          fmt.Println("Panic at intern order")
         }
       }else{
         fmt.Println("Button Event: Hall order")
         drv_hall_button_event <- button_event
       }
-      // short circuit order controller
-    case button_event:= <-drv_hall_button_event:
-      fmt.Println("Hall order in transit")
-      drv_intern_hall_order <- OrderEvent{button_event, true, true}
 
     case hall_order := <- drv_intern_hall_order:
       fmt.Println("Hall order")
       if hall_order.AddOrder {
-        add_order(hall_order.ButtonEvent, hall_order.TurnLightOn)
-        switch elevator_state{
-        case IDLE:// a new order -> open_door or drive
-          if hall_order.ButtonEvent.Floor == last_floor {
-            set_state_to_open_door()
-            clear_order(hall_order.ButtonEvent)
-            //update_elevator_direction_after_door_closes() //necessary?
-          }else if hall_order.ButtonEvent.Floor < last_floor {
-            set_state_to_drive(elevio.MD_Down)
-          }else {
-            set_state_to_drive(elevio.MD_Up)
+        elevator.Orders[hall_order.Floor][hall_order.Button]=true
+        elevio.SetButtonLamp(hall_order.Button, hall_order.Floor, hall_order.TurnLightOn)
+        fmt.Println("Hall order added and lights turned on if requested")
+        fmt.Println("Estimated completion time: %f", estimated_completion_time(elevator,elevio.ButtonEvent{hall_order.Floor, hall_order.Button}))
+        switch elevator.State{
+        case IDLE:
+          if elev_should_open_door(elevator) { //button_event.Floor == last_floor
+            set_state_to_door_open(&elevator)
+            clear_requests_at_floor(&elevator)
+            clear_lights_at_floor(elevator)
+            fmt.Println("Door opens")
+          }else{
+            update_elevator_direction(&elevator)
+            set_state_to_drive(&elevator)
+            fmt.Println("Elevator begins to move")
           }
-        case OPEN_DOOR: // a new order -> extend timer, determine direction
-          update_elevator_direction_after_door_closes()
-          if hall_order.ButtonEvent.Floor == last_floor{
-            if !move_after_door_closes ||
-            ((elevator_direction == elevio.MD_Up && hall_order.ButtonEvent.Button == elevio.BT_HallUp) ||
-            (elevator_direction == elevio.MD_Down && hall_order.ButtonEvent.Button == elevio.BT_HallDown)) {
-              door_timer.Reset(open_door_time_threshold)
-              clear_order(hall_order.ButtonEvent)
-            }
+        case DOOR_OPEN: // a new order -> extend timer, determine direction
+          if elev_should_open_door(elevator) { //button_event.Floor == last_floor
+            set_state_to_door_open(&elevator)
+            clear_requests_at_floor(&elevator)
+            clear_lights_at_floor(elevator)
+            fmt.Println("Door keeps open")
+          }else{
+            update_elevator_direction(&elevator)
           }
-        default:
-          fmt.Println("Panic at extern order")
         }
       } else {
-        clear_order(hall_order.ButtonEvent)
-        // update elevator_direction if move_after_door_closes==true
+        fmt.Println("Delete order: Not implemented")
       }
 
-    case last_floor = <-drv_floor_sensor: //new floor reached -> open_door, idle, drive in other direction, continue drive
+    case elevator.Floor = <-drv_floor_sensor: //new floor reached -> door_open, idle, drive in other direction, continue drive
     fmt.Println("New floor reached")
-      elevio.SetFloorIndicator(last_floor)
-      //update_elevator_direction
-      if get_order_status(elevio.ButtonEvent{last_floor, elevio.BT_Cab}) ||
-      (elevator_direction == elevio.MD_Up && (get_order_status(elevio.ButtonEvent{last_floor, elevio.BT_HallUp}) || (!is_order_upstairs(last_floor) &&
-       get_order_status(elevio.ButtonEvent{last_floor, elevio.BT_HallDown})))) ||
-      (elevator_direction == elevio.MD_Down && (get_order_status(elevio.ButtonEvent{last_floor, elevio.BT_HallDown}) || (!is_order_downstairs(last_floor) &&
-       get_order_status(elevio.ButtonEvent{last_floor, elevio.BT_HallUp})))){
-         set_state_to_open_door()
-         update_elevator_direction_after_door_closes()
-         if move_after_door_closes{
-           if elevator_direction == elevio.MD_Up {
-             clear_order(elevio.ButtonEvent{last_floor, elevio.BT_HallUp})
-             clear_order(elevio.ButtonEvent{last_floor, elevio.BT_Cab})
-           }else if elevator_direction == elevio.MD_Down {
-             clear_order(elevio.ButtonEvent{last_floor, elevio.BT_HallDown})
-             clear_order(elevio.ButtonEvent{last_floor, elevio.BT_Cab})
-           }
-         }else{
-           clear_order(elevio.ButtonEvent{last_floor, elevio.BT_HallUp})
-           clear_order(elevio.ButtonEvent{last_floor, elevio.BT_HallDown})
-           clear_order(elevio.ButtonEvent{last_floor, elevio.BT_Cab})
-           }
-         }
-         // when delete order feature added: continue driving? drive in opossite direction? go to idle
+      elevio.SetFloorIndicator(elevator.Floor)
+      if elev_should_open_door(elevator){
+        set_state_to_door_open(&elevator)
+        update_elevator_direction(&elevator)
+        clear_requests_at_floor(&elevator)
+        clear_lights_at_floor(elevator)
+      }
+    // when delete order feature added: continue driving? drive in opossite direction? go to idle
 
     case <- door_timer.C :
       fmt.Println("Door closes")
       elevio.SetDoorOpenLamp(false)
-      update_elevator_direction_after_door_closes()
-      if move_after_door_closes{
-        set_state_to_drive(elevator_direction)
+      update_elevator_direction(&elevator)
+      if elevator.Dirn == elevio.MD_Stop {
+        set_state_to_idle(&elevator)
       }else{
-        set_state_to_idle()
+        set_state_to_drive(&elevator)
       }
     }
   }
   fmt.Println("Lets end")
+}
+
+func simplified_order_controller(drv_intern_hall_order chan<- OrderEvent, drv_hall_button_event <-chan elevio.ButtonEvent){
+  for{
+    select{
+      // short circuit order controller
+    case button_event:= <-drv_hall_button_event:
+      fmt.Println("Hall order in transit")
+      drv_intern_hall_order <- OrderEvent{button_event.Floor, button_event.Button, true, true}
+    }
+  }
+}
+
+const TRAVEL_TIME = 2.5
+const DOOR_OPEN_TIME = door_open_time_threshold
+
+func estimated_completion_time(elev Elevator, button_event elevio.ButtonEvent) float64{// TO DO
+  duration := 0.0
+  elev.Orders[button_event.Floor][button_event.Button]=true
+  switch elev.State {
+  case IDLE:
+    update_elevator_direction(&elev)
+    if(elev.Dirn == elevio.MD_Stop){
+      return duration
+    }
+  case DRIVE:
+    duration += TRAVEL_TIME/2
+    elev.Floor += int(elev.Dirn)
+  case DOOR_OPEN:
+    duration -= DOOR_OPEN_TIME
+    elev.Orders[elev.Floor][elevio.BT_Cab]=true
+  }
+  for{
+    if(elev_should_open_door(elev)){
+      duration += DOOR_OPEN_TIME
+      clear_requests_at_floor(&elev)
+      update_elevator_direction(&elev)
+      if(elev.Dirn == elevio.MD_Stop || duration > 60.0){// TO DO
+        fmt.Println("Duration until completion %f", duration)
+        return duration
+      }
+    }
+    elev.Floor += int(elev.Dirn)
+    duration += TRAVEL_TIME
+    //fmt.Println("Duration until now %f", duration)
+  }
+}
+/*
+func order_controller(){
+
+}
+*/
+func main(){
+  drv_intern_hall_order := make(chan OrderEvent)
+  drv_hall_button_event := make(chan elevio.ButtonEvent)
+
+  go fsm_module(drv_intern_hall_order,drv_hall_button_event)
+  go simplified_order_controller(drv_intern_hall_order,drv_hall_button_event)
+
+  for{
+  }
 }
