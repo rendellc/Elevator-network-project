@@ -46,23 +46,16 @@ type Debug_placeOrderMsg PlaceOrderMsg
 type Debug_acceptOrderMsg SafeOrderMsg
 
 type ElevatorStatus struct {
-	ID string `json:"id"`
-
+	ID        string    `json:"id"`
 	Floor     int       `json:"floor"`
 	Direction Direction `json:"direction"`
 	Stopped   bool      `json:"stopped"`
 }
 
-type ElevatorStatus struct {
-	Direction  Direction
-	Floor      int
-	ElevatorID string
-}
-
 type Heartbeat struct {
-	SenderID       string        `json:"sender_id"`
-	ElevatorState  ElevatorState `json:"elevator_state"`
-	AcceptedOrders []Order       `json:"accepted_orders"`
+	SenderID       string         `json:"sender_id"`
+	Status         ElevatorStatus `json:"elevator_state"`
+	AcceptedOrders []Order        `json:"accepted_orders"`
 }
 
 // sort.Interface for heartbeat slices
