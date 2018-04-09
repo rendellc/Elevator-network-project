@@ -39,11 +39,11 @@ type PlaceOrderMsg OrderMsg
 type OrderPlacedAck OrderMsg
 type TakeOrderMsg OrderMsg
 type TakeOrderAck OrderMsg
-type AcceptOrderMsg OrderMsg
+type SafeOrderMsg OrderMsg
 type CompleteOrderMsg OrderMsg
 
 type Debug_placeOrderMsg PlaceOrderMsg
-type Debug_acceptOrderMsg AcceptOrderMsg
+type Debug_acceptOrderMsg SafeOrderMsg
 
 type ElevatorStatus struct {
 	ID        string    `json:"id"`
@@ -86,4 +86,18 @@ func (e ElevatorStatusSlice) Less(i, j int) bool {
 
 func (e ElevatorStatusSlice) Swap(i, j int) {
 	e[i], e[j] = e[j], e[i]
+}
+
+// nice printing
+func (d Direction) String() string {
+	switch d {
+	case Up:
+		return "↑"
+	case Down:
+		return "↓"
+	}
+	return "-invalidDirection-"
+}
+func (t OrderType) String() string {
+	return string(t)
 }
