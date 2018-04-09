@@ -52,6 +52,12 @@ type ElevatorStatus struct {
 	Stopped   bool      `json:"stopped"`
 }
 
+type ElevatorStatus struct {
+	Direction  Direction
+	Floor      int
+	ElevatorID string
+}
+
 type Heartbeat struct {
 	SenderID       string         `json:"sender_id"`
 	Status         ElevatorStatus `json:"elevator_status"`
