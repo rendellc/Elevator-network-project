@@ -12,13 +12,17 @@ const (
     DRIVE
     DOOR_OPEN
 )
+var elevator_state State//= IDLE
+var elevator_direction elevio.MotorDirection
+var last_floor int
+var move_after_door_closes bool
 // Intern order handle variables
 const N_FLOORS = 4 //import
 const N_BUTTONS = 3
 var order_register_matrix[N_BUTTONS][N_FLOORS] bool //initialze as false
 // Door timer variables
 const door_open_time_threshold = 3.0
-var door_timer = time.NewTimer(door_open_time_threshold)
+var door_timer = time.NewTimer(door_open_time_threshold*time.Second)
 
 type Elevator struct {
     Floor int

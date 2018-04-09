@@ -1,7 +1,7 @@
 # Elevator Project.
 
 ## Introduction
-An elevators primary purpose is to transport people and items between floors. A sensible metric of performance could be something indicating how well and fast this primary task is done. This is not something we care about in this project. The elevators must avoid starvation and "silly actions", other than that, not much attention is given to their performance as elevators. This project is really about faults, how they are bound to happen, and how we can keep them from ruining our day. 
+An elevators primary purpose is to transport people and items between floors. A sensible metric of performance could be something indicating how well and fast this primary task is done. This is not something we care about in this project. The elevators must avoid starvation and "silly actions", other than that, not much attention is given to their performance as elevators. This project is really about faults, how they are bound to happen, and how we can keep them from ruining our day.
 
 On the good days, your elevator system is bound to be under-appreciated. The corporate procurement officers is going to favor cheaper or faster alternatives. But when the day comes that an especially large earthquake simultaneously causes the largest tsunami the world has ever seen, cracks the concrete in a biological warfare lab and cause a nuclear reactor meltdown, your elevator system is going to be all worth it. Most of your server rooms will be flooded. Radioactive zombies will be chewing on your network cables. And most of your disks will be wiped out by the earthquake itself. In this chaotic post apocalyptic world, the only constant will be that your elevator system will remain in working order, and every order that is taken, will also be served.
 
@@ -20,7 +20,7 @@ If you are not satisfied with the answer of a student assistant, or believe that
 If this seem daunting to you, fear not. You can choose to not care about any of the formalities surrounding the technical specification and FAQ process. If you instead use your best intuition on how elevators should work and ask as many questions as you can come up with to the student assistants and your fellow students, you will come up with something that is identical to the complete specification, and you too will be able to channel it through your very own (possibly distorted) mind.
 
 ## Programming Language
-We do not impose any constraints on which programming languages you can use. As long as it is possible to use it for the task at hand, you are allowed to do so. You are responsible of keeping track of any tools you might need for making your project work (compilers, dependencies, build systems, etc) and the versioning of these, but we know these things can be hard and you should not hesitate to ask for help. 
+We do not impose any constraints on which programming languages you can use. As long as it is possible to use it for the task at hand, you are allowed to do so. You are responsible of keeping track of any tools you might need for making your project work (compilers, dependencies, build systems, etc) and the versioning of these, but we know these things can be hard and you should not hesitate to ask for help.
 
 #### State of support for some popular languages
 
@@ -81,7 +81,7 @@ We encourage submissions to this list! Tutorials, libraries, articles, blog post
    - Importing native libraries: [general](http://www.codeproject.com/Articles/403285/P-Invoke-Tutorial-Basics-Part) and [for Linux](http://www.mono-project.com/docs/advanced/pinvoke/)
 
 <!-- -->
- 
+
  - Design and code quality
    - [The State of Sock Tubes](http://james-iry.blogspot.no/2009/04/state-of-sock-tubes.html): How "state" is pervasive even in message-passing- and functional languages
    - [Defactoring](http://raganwald.com/2013/10/08/defactoring.html): Removing flexibility to better express intent
