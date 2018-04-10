@@ -8,26 +8,14 @@ import(
 
 type Direction elevio.MotorDirection
 
-type OrderType string
+type OrderType elevio.ButtonType
 
-const (
-	CabCall  OrderType = "cab"
-	HallCall OrderType = "hall"
-)
-
-type ElevatorState int
-
-const (
-	MovingUp ElevatorState = iota
-	MovingDown
-	StopUp
-	StopDown
-)
+type ElevatorState fsm.State
 
 type Order struct {
 	ID        int       `json:"order_id"`
 	Floor     int       `json:"floor"`
-	Direction Direction `json:"direction"`
+	Type 			OrderType `json:"type"`
 }
 
 type OrderMsg struct {
@@ -51,13 +39,13 @@ type ElevatorStatus struct {
 	Floor int													`json:"floor"`
 	Dir Direction											`json:"direction"`
 	Orders[N_FLOORS][N_BUTTONS] bool	`json:"orders"`
-	State fsm.State										`json:"behaviour"`
+	State fsm.State										`json:"status"`
 }
 
 type Heartbeat struct {
-	SenderID       string        `json:"sender_id"`
-	ElevatorState  ElevatorState `json:"elevator_state"`
-	AcceptedOrders []Order       `json:"accepted_orders"`
+	SenderID       string        		`json:"sender_id"`
+	ElevatorStatus  ElevatorStatus 	`json:"elevator_status"`
+	AcceptedOrders []Order       		`json:"accepted_orders"`
 }
 
 // sort.Interface for heartbeat slices
@@ -102,6 +90,14 @@ func (d Direction) String() string {
 	}
 	return "-invalidDirection-"
 }
+
 func (t OrderType) String() string {
-	return string(t)
+	switch t {
+	case elevio.BT_HallUp:
+		return "Hall Up"
+	case elevio.BT_HallDown:
+		return "Hall Down"
+	case elevio.BT_Cab:
+		return "Cab"
+	}
 }

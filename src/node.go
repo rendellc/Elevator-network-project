@@ -105,7 +105,7 @@ func main() {
 				fmt.Printf("[orderPlacedAckRecvCh]: %v acknowledged\n", msg.Order.ID)
 				delete(placeUnackedOrders, msg.Order.ID)
 
-				// Order is safe since multiple elevators knows about it
+				// Order is safe since multiple elevators know about it
 				safeMsg := msgs.SafeOrderMsg{SenderID: *id_ptr, RecieverID: *id_ptr, Order: msg.Order}
 				safeOrderCh <- safeMsg
 			}
@@ -199,26 +199,25 @@ func pseudoOrderHandlerAndFsm(thisElevatorHeartbeatCh chan<- msgs.Heartbeat, ele
 	thisTakeOrderCh <-chan msgs.TakeOrderMsg, otherTakeOrderCh chan<- msgs.TakeOrderMsg,
 	safeOrderCh <-chan msgs.SafeOrderMsg, completedOrderCh chan<- msgs.Order) {
 
-		drv_intern_hall_order := make(chan OrderEvent)
-		drv_hall_button_event := make(chan elevio.ButtonEvent)
-		elevatorStatusCh			:= make(chan fsm.Elevator)
-		go fsm.fsm_module(drv_intern_hall_order, drv_hall_button_event, elevatorStatusCh)
+		addHallOrderCh := make(chan OrderEvent)
+		deleteHallOrderCh := make(chan elevio.ButtonEvent)
+		placedHallOrderCh := make(chan elevio.ButtonEvent)
+		completedHallOrderCh := make(chan elevio.ButtonEvent)
+		elevatorStatusCh := make(chan Elevator)
+		go fsm.FSM(addHallOrderCh, deleteHallOrderCh, placedHallOrderCh, completedHallOrderCh, elevatorStatusCh)
+		var elevatorStatus fsm.Elevator
 
 
-		orders := make(map[int]msgs.Order)
+		orders := make(map[int]msgs.Order)	// difference orders and acceptedOrders ???
 		acceptedOrders := make(map[int]bool)     // used as a set
-		thisElevatorOrders := make(map[int]bool) // used as a set
-		thisElevatorOrdersUpdated := false
 
 		dbg_placeOrderCh := make(chan msgs.Debug_placeOrderMsg)
 		dbg_acceptOrderCh := make(chan msgs.Debug_acceptOrderMsg)
 		go bcast.Receiver(port, dbg_placeOrderCh, dbg_acceptOrderCh)
 
-		const fsmMaxFloor int = 4
-		fsmStatus := msgs.ElevatorStatus{ID: *id_ptr, Direction: msgs.Up, Floor: 1 + rnd.Intn(fsmMaxFloor-1)}
-
-		fmt.Println("[fsm] started at: ", fsmStatus)
-		thisElevatorHeartbeatCh <- msgs.Heartbeat{SenderID: *id_ptr, Status: fsmStatus, AcceptedOrders: []msgs.Order{}}
+		thisElevatorOrdersUpdated := false
+		fmt.Println("[fsm] started at: ", elevatorStatus)
+		//thisElevatorHeartbeatCh <- msgs.Heartbeat{SenderID: *id_ptr, Status: fsmStatus, AcceptedOrders: []msgs.Order{}}
 
 		var elevators []msgs.ElevatorStatus
 
@@ -231,57 +230,21 @@ func pseudoOrderHandlerAndFsm(thisElevatorHeartbeatCh chan<- msgs.Heartbeat, ele
 				}
 				fmt.Printf("\n")
 
-			case downedElevators := <-downedElevatorsCh:
+			case downedElevators := <-downedElevatorsCh:	// OK
 				for _, lastHeartbeat := range downedElevators {
 					// elevator is down
 					fmt.Printf("[orderHandler]: down: %+v %v\n", lastHeartbeat.SenderID, lastHeartbeat.AcceptedOrders)
-
 					// take order this elevator had
 					for _, order := range lastHeartbeat.AcceptedOrders {
 						orders[order.ID] = order
-						thisElevatorOrders[order.ID] = true
+						addHallOrderCh <- fsm.OrderEvent{order.Floor, order.Type, false}	//turn on/off lights? ???
 					}
 				}
 
 			case <-time.After(20 * time.Second): // debugging. OK
-				fmt.Println("[fsm] status: ", fsmStatus)
+				fmt.Println("[fsm] status: ", elevatorStatus)
 
-			case fsmStatus <- elevatorStatusCh:
-				// pseudo-fsm
-
-			case buttonEvent <- completedHallOrderCh:
-				// check if we can complete an order
-				fsmStatus.Stopped = false
-				for orderID, _ := range thisElevatorOrders {
-					if orders[orderID].Floor == fsmStatus.Floor &&
-						orders[orderID].Direction == fsmStatus.Direction {
-						fmt.Printf("[fsm]: completing order %v\n", orderID)
-						fsmStatus.Stopped = true
-
-						// broadcast to network that order is completed
-						completedOrderCh <- orders[orderID]
-
-						// remove order from orderHandler/fsm
-						delete(thisElevatorOrders, orderID)
-						thisElevatorOrdersUpdated = true // for debugging
-						delete(acceptedOrders, orderID)
-						delete(orders, orderID)
-					}
-				}
-
-				if !fsmStatus.Stopped {
-					if fsmStatus.Floor == fsmMaxFloor {
-						fsmStatus.Direction = msgs.Down
-					} else if fsmStatus.Floor == 1 {
-						fsmStatus.Direction = msgs.Up
-					}
-					if fsmStatus.Direction == msgs.Up {
-						fsmStatus.Floor += 1
-					} else if fsmStatus.Direction == msgs.Down {
-						fsmStatus.Floor -= 1
-					}
-				}
-
+			case elevatorStatus <- elevatorStatusCh:	// Here
 				var acceptedOrderList []msgs.Order
 				for orderID, _ := range acceptedOrders {
 					if order, exists := orders[orderID]; exists {
@@ -290,21 +253,35 @@ func pseudoOrderHandlerAndFsm(thisElevatorHeartbeatCh chan<- msgs.Heartbeat, ele
 						fmt.Printf("[thisElevatorHeartbeatCh]: Warn: orderID %v didn't exist")
 					}
 				}
+				thisElevatorHeartbeatCh <- msgs.Heartbeat{SenderID: *id_ptr, ElevatorStatus: elevatorStatus, AcceptedOrders: acceptedOrderList}
 
-				thisElevatorHeartbeatCh <- msgs.Heartbeat{SenderID: *id_ptr, Status: fsmStatus, AcceptedOrders: acceptedOrderList}
-			case msg := <-thisTakeOrderCh:
+			case buttonEvent <- completedHallOrderCh:	// OK
+				for orderID, _ := range thisElevatorOrders {
+					if orders[orderID].Floor == buttonEvent.Floor &&
+						orders[orderID].Type == buttonEvent.Button {
+						fmt.Printf("[fsm]: completed order %v\n", orderID)
+						// broadcast to network that order is completed
+						completedOrderCh <- orders[orderID]
+						// remove order from orderHandler/fsm
+						thisElevatorOrdersUpdated = true // for debugging
+						delete(acceptedOrders, orderID)
+						delete(orders, orderID)
+					}
+				}
+
+			case msg := <-thisTakeOrderCh:	// OK
 				if _, exists := orders[msg.Order.ID]; !exists {
 					fmt.Printf("[thisTakeOrderCh]: didnt have order %v,from before, %v\n", msg.Order.ID, orders)
 					orders[msg.Order.ID] = msg.Order
+					addHallOrderCh <- fsm.OrderEvent{msg.Order.Floor, msg.Order.Type, true}	// turn on/off light? ???
 				}
 				// error checking
 				if orders[msg.Order.ID] != msg.Order {
 					fmt.Printf("[thisTakeOrderCh]: had different order with same ID \n\t(my)%+v\n\t(recv)%+v\n", orders[msg.Order.ID], msg.Order)
 				}
-
 				acceptedOrders[msg.Order.ID] = true
-				thisElevatorOrders[msg.Order.ID] = true
 				thisElevatorOrdersUpdated = true // for debugging
+
 			case safeMsg := <-safeOrderCh:
 				fmt.Printf("[safeOrderCh]: %v\n", safeMsg)
 				if safeMsg.RecieverID == *id_ptr {
@@ -463,7 +440,8 @@ func pseudoOrderHandlerAndFsm(thisElevatorHeartbeatCh chan<- msgs.Heartbeat, ele
 			acceptedOrders[msg.Order.ID] = true
 			thisElevatorOrders[msg.Order.ID] = true
 			thisElevatorOrdersUpdated = true // for debugging
-		case safeMsg := <-safeOrderCh:
+
+		case safeMsg := <-safeOrderCh:	// Here
 			fmt.Printf("[safeOrderCh]: %v\n", safeMsg)
 			if safeMsg.RecieverID == *id_ptr {
 				if _, exists := orders[safeMsg.Order.ID]; exists {
