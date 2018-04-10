@@ -7,7 +7,6 @@ import (
 	//"../order_handler"
 )
 
-// FSM variables
 type State int
 
 const (
@@ -16,14 +15,6 @@ const (
 	DOOR_OPEN
 )
 
-// Intern order handle variables
-const N_FLOORS = 4 //import
-const N_BUTTONS = 3
-
-// Door timer variables
-const door_open_time_threshold = 3.0                                  // time.Second
-var doorTimer = time.NewTimer(door_open_time_threshold * time.Second) // * time.Second
-//
 type Elevator struct {
 	Floor  int
 	Dir    elevio.MotorDirection
@@ -31,7 +22,13 @@ type Elevator struct {
 	State  State
 }
 
-// FSM functions
+const N_FLOORS = 4 //import
+const N_BUTTONS = 3
+const TRAVEL_TIME = 2.5
+const DOOR_OPEN_TIME = 3.0
+
+var doorTimer = time.NewTimer(DOOR_OPEN_TIME * time.Second)
+
 func initalize_state(elev *Elevator, floorSensorCh <-chan int) {
 	// Add timer? After timer goes out, then drive down.
 	fmt.Println("Initializing")
@@ -46,7 +43,7 @@ func set_state_to_door_open(elev *Elevator) {
 	elev.State = DOOR_OPEN
 	elevio.SetMotorDirection(elevio.MD_Stop)
 	elevio.SetDoorOpenLamp(true)
-	doorTimer.Reset(door_open_time_threshold * time.Second)
+	doorTimer.Reset(DOOR_OPEN_TIME * time.Second)
 }
 
 func set_state_to_drive(elev *Elevator) {
@@ -292,9 +289,6 @@ func FSM(addHallOrderCh <-chan OrderEvent, deleteHallOrderCh <-chan OrderEvent,
 	}
 	fmt.Println("Lets end")
 }
-
-const TRAVEL_TIME = 2.5
-const DOOR_OPEN_TIME = door_open_time_threshold
 
 func EstimatedCompletionTime(elev Elevator, order_event OrderEvent) float64{// TO DO
   duration := 0.0
