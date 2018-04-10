@@ -3,7 +3,6 @@ package network
 import (
 	"../comm/bcast"
 	"../comm/peers"
-	"../elevio"
 	"../fsm"
 	"../msgs"
 	"fmt"
@@ -19,7 +18,7 @@ const timeout = 1 * time.Second
 const giveupAckwaitTimeout = 5 * time.Second
 
 func Launch(id string,
-	thisElevatorStatusCh <-chan fsm.Elevator, otherElevatorsStatusCh chan<- []fsm.Elevator, downedElevatorsCh chan<- []msgs.Heartbeat,
+	thisElevatorStatusCh <-chan msgs.Heartbeat, allElevatorsHeartbeatCh chan<- []msgs.Heartbeat, downedElevatorsCh chan<- []msgs.Heartbeat,
 	placedOrderCh <-chan msgs.Order, thisTakeOrderCh chan<- msgs.TakeOrderMsg, otherTakeOrderCh <-chan msgs.TakeOrderMsg,
 	safeOrderCh chan<- msgs.SafeOrderMsg, completedOrderCh <-chan msgs.Order) {
 
@@ -126,7 +125,7 @@ func Launch(id string,
 				//fmt.Println("[peerUpdateCh]: New: ", peerUpdate.New)
 			}
 
-			otherElevatorsStatusCh <- peerUpdate.Peers
+			allElevatorsHeartbeatCh <- peerUpdate.Peers
 		case order := <-completedOrderCh:
 			fmt.Println("[orderCompletedCh]: ", order)
 
@@ -136,13 +135,16 @@ func Launch(id string,
 				fmt.Println("[orderCompletedRecvCh]: ", msg.Order)
 				delete(ongoingOrders, msg.Order.ID)
 			}
-		case status := <-thisElevatorStatusCh:
-			var acceptedOrders []msgs.Order
-			for orderID, _ := range ongoingOrders {
-				acceptedOrders = append(acceptedOrders, ordersRecieved[orderID])
-			}
-			heartbeat := msgs.Heartbeat{SenderID: id, Status: status, AcceptedOrders: acceptedOrders}
-			peerStatusSendCh <- heartbeat
+		case partialHeartbeat := <-thisElevatorStatusCh:
+			// heartbeat lacks id
+			partialHeartbeat.SenderID = id
+
+			peerStatusSendCh <- partialHeartbeat
+			//var acceptedOrders []msgs.Order
+			//for orderID, _ := range ongoingOrders {
+			//	acceptedOrders = append(acceptedOrders, ordersRecieved[orderID])
+			//}
+			//heartbeat := msgs.Heartbeat{SenderID: id, Status: status, AcceptedOrders: acceptedOrders}
 		case <-time.After(1 * time.Second):
 			// an (empty) event every second, avoids some forms of locking
 		}
@@ -184,41 +186,46 @@ func Launch(id string,
 }
 
 // pseudo-orderHandler and fsm
-func PseudoOrderHandlerAndFsm(id string, thisElevatorStatusCh chan<- fsm.Elevator,
-	elevatorsStatusCh <-chan []fsm.Elevator, downedElevatorsCh <-chan []msgs.Heartbeat,
+func PseudoOrderHandlerAndFsm(id string, thisElevatorHeartbeatCh chan<- msgs.Heartbeat,
+	allElevatorsHeartbeatCh <-chan []msgs.Heartbeat, downedElevatorsCh <-chan []msgs.Heartbeat,
 	placedOrderCh chan<- msgs.Order, thisTakeOrderCh <-chan msgs.TakeOrderMsg, otherTakeOrderCh chan<- msgs.TakeOrderMsg,
 	safeOrderCh <-chan msgs.SafeOrderMsg, completedOrderCh chan<- msgs.Order) {
 
 	addHallOrderCh := make(chan fsm.OrderEvent)
-	deleteHallOrderCh := make(chan elevio.ButtonEvent)
-	placedHallOrderCh := make(chan elevio.ButtonEvent)
-	completedHallOrderCh := make(chan elevio.ButtonEvent)
-	elevatorStatusCh := make(chan Elevator)
+	deleteHallOrderCh := make(chan fsm.OrderEvent)
+	placedHallOrderCh := make(chan fsm.OrderEvent)
+	completedHallOrderCh := make(chan fsm.OrderEvent)
+	elevatorStatusCh := make(chan fsm.Elevator)
 	go fsm.FSM(addHallOrderCh, deleteHallOrderCh, placedHallOrderCh, completedHallOrderCh, elevatorStatusCh)
 	var elevatorStatus fsm.Elevator
 
-	orders := make(map[int]msgs.Order)   // difference orders and acceptedOrders ???
-	acceptedOrders := make(map[int]bool) // used as a set
-
-	dbg_placeOrderCh := make(chan msgs.Debug_placeOrderMsg)
-	dbg_acceptOrderCh := make(chan msgs.Debug_acceptOrderMsg)
-	go bcast.Receiver(port, dbg_placeOrderCh, dbg_acceptOrderCh)
+	orders := make(map[int]msgs.Order)
+	acceptedOrders := make(map[int]bool)     // set of accepted orderIDs
+	thisElevatorOrders := make(map[int]bool) // set of order this elevator will take
 
 	thisElevatorOrdersUpdated := false
 	fmt.Println("[fsm] started at: ", elevatorStatus)
-	//thisElevatorHeartbeatCh <- msgs.Heartbeat{SenderID: *id_ptr, Status: fsmStatus, AcceptedOrders: []msgs.Order{}}
+	//thisElevatorHeartbeatCh <- msgs.Heartbeat{SenderID: id, Status: fsmStatus, AcceptedOrders: []msgs.Order{}}
 
-	var elevators []msgs.ElevatorStatus
+	var elevators []msgs.Heartbeat
 
 	for {
 		select {
-		case elevators = <-elevatorsStatusCh: // debugging. OK
-			fmt.Printf("[orderHandler]: elevators: ")
-			for _, elevator := range elevators {
-				fmt.Printf("%v ", elevator.ID)
+		case elevatorStatus = <-elevatorStatusCh: // Here
+			var acceptedOrderList []msgs.Order
+			for orderID, _ := range acceptedOrders {
+				if order, exists := orders[orderID]; exists {
+					acceptedOrderList = append(acceptedOrderList, order)
+				} else {
+					fmt.Printf("[thisElevatorHeartbeatCh]: Warn: orderID %v didn't exist")
+				}
 			}
-			fmt.Printf("\n")
+			thisElevatorHeartbeatCh <- msgs.Heartbeat{SenderID: id,
+				Status:         elevatorStatus,
+				AcceptedOrders: acceptedOrderList}
 
+		case elevators = <-allElevatorsHeartbeatCh: // debugging. OK
+			fmt.Printf("[orderHandler]: number of elevators: %v\n", len(elevators))
 		case downedElevators := <-downedElevatorsCh: // OK
 			for _, lastHeartbeat := range downedElevators {
 				// elevator is down
@@ -231,17 +238,6 @@ func PseudoOrderHandlerAndFsm(id string, thisElevatorStatusCh chan<- fsm.Elevato
 			}
 		case <-time.After(20 * time.Second): // debugging. OK
 			fmt.Println("[fsm] status: ", elevatorStatus)
-		case elevatorStatus = <-elevatorStatusCh: // Here
-			var acceptedOrderList []msgs.Order
-			for orderID, _ := range acceptedOrders {
-				if order, exists := orders[orderID]; exists {
-					acceptedOrderList = append(acceptedOrderList, order)
-				} else {
-					fmt.Printf("[thisElevatorHeartbeatCh]: Warn: orderID %v didn't exist")
-				}
-			}
-			thisElevatorHeartbeatCh <- msgs.Heartbeat{SenderID: *id_ptr, ElevatorStatus: elevatorStatus, AcceptedOrders: acceptedOrderList}
-
 		case buttonEvent := <-completedHallOrderCh: // OK
 			for orderID, _ := range thisElevatorOrders {
 				if orders[orderID].Floor == buttonEvent.Floor &&
@@ -265,24 +261,25 @@ func PseudoOrderHandlerAndFsm(id string, thisElevatorStatusCh chan<- fsm.Elevato
 			if orders[msg.Order.ID] != msg.Order {
 				fmt.Printf("[thisTakeOrderCh]: had different order with same ID \n\t(my)%+v\n\t(recv)%+v\n", orders[msg.Order.ID], msg.Order)
 			}
-			acceptedOrders[msg.Order.ID] = true
+			//acceptedOrders[msg.Order.ID] = true
+			thisElevatorOrders[msg.Order.ID] = true
 			thisElevatorOrdersUpdated = true // for debugging
 
-		case ButtonEvent := <-placedHallOrderCh: // OK
-			placedOrderCh <- msgs.PlacedOrderMsg{SenderID: *id_ptr, Order: ButtonEvent}
+		case buttonEvent := <-placedHallOrderCh: // OK
+			placedOrderCh <- msgs.Order{Floor: buttonEvent.Floor, Type: buttonEvent.Button}
 		case safeMsg := <-safeOrderCh:
 			fmt.Printf("[safeOrderCh]: %v\n", safeMsg)
-			if safeMsg.ReceiverID == *id_ptr {
+			if safeMsg.ReceiverID == id {
 				if _, exists := orders[safeMsg.Order.ID]; exists {
 					acceptedOrders[safeMsg.Order.ID] = true
 
 					scoreMap := make(map[string]float64)
 					for _, elevator := range elevators {
-						scoreMap[elevator.ID] = fsm.EstimatedCompletionTime(elevator, elevio.ButtonEvent{safeMsg.Order.Floor, safeMsg.Order.Type})
+						scoreMap[elevator.SenderID] = fsm.EstimatedCompletionTime(elevator.Status, fsm.OrderEvent{Floor: safeMsg.Order.Floor, Button: safeMsg.Order.Type})
 					}
 
 					// find best (lowest) score
-					bestID := *id_ptr
+					bestID := id
 					for id, score := range scoreMap {
 						if score < scoreMap[bestID] {
 							bestID = id
@@ -290,8 +287,8 @@ func PseudoOrderHandlerAndFsm(id string, thisElevatorStatusCh chan<- fsm.Elevato
 					}
 
 					fmt.Printf("[orderHandler]: elevator %v should take order %v (%v)\n", bestID, safeMsg.Order.ID, scoreMap)
-					if bestID != *id_ptr {
-						takeOrderMsg := msgs.TakeOrderMsg{SenderID: *id_ptr, ReceiverID: bestID, Order: orders[safeMsg.Order.ID]}
+					if bestID != id {
+						takeOrderMsg := msgs.TakeOrderMsg{SenderID: id, ReceiverID: bestID, Order: orders[safeMsg.Order.ID]}
 						otherTakeOrderCh <- takeOrderMsg
 					} else {
 						thisElevatorOrders[safeMsg.Order.ID] = true

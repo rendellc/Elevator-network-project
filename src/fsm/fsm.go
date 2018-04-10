@@ -22,6 +22,12 @@ type Elevator struct {
 	State  State
 }
 
+type OrderEvent struct {
+	Floor       int
+	Button      elevio.ButtonType
+	TurnLightOn bool
+}
+
 const N_FLOORS = 4 //import
 const N_BUTTONS = 3
 const TRAVEL_TIME = 2.5
@@ -148,7 +154,7 @@ func clearOrdersAtFloor(elev *Elevator) {
 	}
 }
 
-func clearLightsAtFloor(elev Elevator) {	// ???
+func clearLightsAtFloor(elev Elevator) { // ???
 	if elev.Dir == elevio.MD_Up {
 		elevio.SetButtonLamp(elevio.BT_HallUp, elev.Floor, false)
 		elevio.SetButtonLamp(elevio.BT_Cab, elev.Floor, false)
@@ -168,15 +174,9 @@ func clearLightsAtFloor(elev Elevator) {	// ???
 	}
 }
 
-type OrderEvent struct {
-	Floor       int
-	Button      elevio.ButtonType
-	TurnLightOn bool
-}
-
 func FSM(addHallOrderCh <-chan OrderEvent, deleteHallOrderCh <-chan OrderEvent,
-  placedHallOrderCh chan<- OrderEvent, completedHallOrderCh chan<- OrderEvent,
-  elevatorStatusCh chan<- Elevator){
+	placedHallOrderCh chan<- OrderEvent, completedHallOrderCh chan<- OrderEvent,
+	elevatorStatusCh chan<- Elevator) {
 
 	fmt.Println("Lets start")
 	elevio.Init("localhost:15657", N_FLOORS)
@@ -192,71 +192,71 @@ func FSM(addHallOrderCh <-chan OrderEvent, deleteHallOrderCh <-chan OrderEvent,
 	go elevio.PollButtons(buttonCh)
 	fmt.Println("Before for loop")
 
-  for{
-    select{
-    case buttonEvent := <- buttonCh:
-      fmt.Println("Button Event")
-      if buttonEvent.Button == elevio.BT_Cab{
-        fmt.Println("Button Event: Cab order")
-        elevator.Orders[buttonEvent.Floor][buttonEvent.Button] = true
-        elevio.SetButtonLamp(buttonEvent.Button, buttonEvent.Floor, true)
-        fmt.Println("Cab order added and lights turned on")
-        fmt.Println("Estimated completion time: %f", EstimatedCompletionTime(elevator, OrderEvent{buttonEvent.Floor, buttonEvent.Button, false}))
-        switch elevator.State{
-        case IDLE:
-          if elevShouldOpenDoor(elevator) { //buttonEvent.Floor == last_floor
-            setStateToDoorOpen(&elevator)
-            clearOrdersAtFloor(&elevator)
-            clearLightsAtFloor(elevator)
-            fmt.Println("Door opens")
-          }else{
-            updateElevatorDirection(&elevator)
-            setStateToDrive(&elevator)
-            fmt.Println("Elevator begins to move")
-          }
-        case DOOR_OPEN: // a new order -> extend timer, determine direction
-          if elevShouldOpenDoor(elevator) { //buttonEvent.Floor == last_floor
-            setStateToDoorOpen(&elevator)
-            clearOrdersAtFloor(&elevator)
-            clearLightsAtFloor(elevator)
-            fmt.Println("Door keeps open")
-          }else{
-            updateElevatorDirection(&elevator)
-          }
-        }
-      }else{
-        fmt.Println("Button Event: Hall order")
-        placedHallOrderCh <- OrderEvent{buttonEvent.Floor, buttonEvent.Button, false}
-      }
+	for {
+		select {
+		case buttonEvent := <-buttonCh:
+			fmt.Println("Button Event")
+			if buttonEvent.Button == elevio.BT_Cab {
+				fmt.Println("Button Event: Cab order")
+				elevator.Orders[buttonEvent.Floor][buttonEvent.Button] = true
+				elevio.SetButtonLamp(buttonEvent.Button, buttonEvent.Floor, true)
+				fmt.Println("Cab order added and lights turned on")
+				fmt.Println("Estimated completion time: %f", EstimatedCompletionTime(elevator, OrderEvent{buttonEvent.Floor, buttonEvent.Button, false}))
+				switch elevator.State {
+				case IDLE:
+					if elevShouldOpenDoor(elevator) { //buttonEvent.Floor == last_floor
+						setStateToDoorOpen(&elevator)
+						clearOrdersAtFloor(&elevator)
+						clearLightsAtFloor(elevator)
+						fmt.Println("Door opens")
+					} else {
+						updateElevatorDirection(&elevator)
+						setStateToDrive(&elevator)
+						fmt.Println("Elevator begins to move")
+					}
+				case DOOR_OPEN: // a new order -> extend timer, determine direction
+					if elevShouldOpenDoor(elevator) { //buttonEvent.Floor == last_floor
+						setStateToDoorOpen(&elevator)
+						clearOrdersAtFloor(&elevator)
+						clearLightsAtFloor(elevator)
+						fmt.Println("Door keeps open")
+					} else {
+						updateElevatorDirection(&elevator)
+					}
+				}
+			} else {
+				fmt.Println("Button Event: Hall order")
+				placedHallOrderCh <- OrderEvent{buttonEvent.Floor, buttonEvent.Button, false}
+			}
 
-    case hallOrder := <- addHallOrderCh:
-      fmt.Println("Hall order")
-      elevator.Orders[hallOrder.Floor][hallOrder.Button] = true
-      elevio.SetButtonLamp(hallOrder.Button, hallOrder.Floor, hallOrder.TurnLightOn)
-      fmt.Println("Hall order added and lights turned on if requested")
-      fmt.Println("Estimated completion time: %f", EstimatedCompletionTime(elevator, hallOrder))
-      switch elevator.State{
-      case IDLE:
-        if elevShouldOpenDoor(elevator) { //buttonEvent.Floor == last_floor
-          setStateToDoorOpen(&elevator)
-          clearOrdersAtFloor(&elevator)
-          clearLightsAtFloor(elevator)
-          fmt.Println("Door opens")
-        }else{
-          updateElevatorDirection(&elevator)
-          setStateToDrive(&elevator)
-          fmt.Println("Elevator begins to move")
-        }
-      case DOOR_OPEN: // a new order -> extend timer, determine direction
-        if elevShouldOpenDoor(elevator) { //buttonEvent.Floor == last_floor
-          setStateToDoorOpen(&elevator)
-          clearOrdersAtFloor(&elevator)
-          clearLightsAtFloor(elevator)
-          fmt.Println("Door keeps open")
-        }else{
-          updateElevatorDirection(&elevator)
-        }
-      }
+		case hallOrder := <-addHallOrderCh:
+			fmt.Println("Hall order")
+			elevator.Orders[hallOrder.Floor][hallOrder.Button] = true
+			elevio.SetButtonLamp(hallOrder.Button, hallOrder.Floor, hallOrder.TurnLightOn)
+			fmt.Println("Hall order added and lights turned on if requested")
+			fmt.Println("Estimated completion time: %f", EstimatedCompletionTime(elevator, hallOrder))
+			switch elevator.State {
+			case IDLE:
+				if elevShouldOpenDoor(elevator) { //buttonEvent.Floor == last_floor
+					setStateToDoorOpen(&elevator)
+					clearOrdersAtFloor(&elevator)
+					clearLightsAtFloor(elevator)
+					fmt.Println("Door opens")
+				} else {
+					updateElevatorDirection(&elevator)
+					setStateToDrive(&elevator)
+					fmt.Println("Elevator begins to move")
+				}
+			case DOOR_OPEN: // a new order -> extend timer, determine direction
+				if elevShouldOpenDoor(elevator) { //buttonEvent.Floor == last_floor
+					setStateToDoorOpen(&elevator)
+					clearOrdersAtFloor(&elevator)
+					clearLightsAtFloor(elevator)
+					fmt.Println("Door keeps open")
+				} else {
+					updateElevatorDirection(&elevator)
+				}
+			}
 
 		case hallOrder := <-deleteHallOrderCh:
 			fmt.Println("Delete order: Not implemented", hallOrder)
@@ -290,39 +290,39 @@ func FSM(addHallOrderCh <-chan OrderEvent, deleteHallOrderCh <-chan OrderEvent,
 	fmt.Println("Lets end")
 }
 
-func EstimatedCompletionTime(elev Elevator, orderEvent OrderEvent) float64{// TO DO
-  duration := 0.0
-  elev.Orders[orderEvent.Floor][orderEvent.Button] = true
-  switch elev.State {
-  case IDLE:
-    updateElevatorDirection(&elev)
-    if(elev.Dir == elevio.MD_Stop){
-      return duration
-    }
-  case DRIVE:
-    duration += TRAVEL_TIME/2
-    elev.Floor += int(elev.Dir)
-  case DOOR_OPEN:
-    //duration -= DOOR_OPEN_TIME/2
-    //updateElevatorDirection(&elev)
-    //if(elev.Dir == elevio.MD_Stop){
-    //  return duration
-    //}
-    duration -= DOOR_OPEN_TIME
-    elev.Orders[elev.Floor][elevio.BT_Cab] = true
-  }
-  for{
-    if(elevShouldOpenDoor(elev)){
-      duration += DOOR_OPEN_TIME
-      clearOrdersAtFloor(&elev)
-      updateElevatorDirection(&elev)
-      if(elev.Dir == elevio.MD_Stop || duration > 60.0){// TO DO
-        fmt.Println("Duration until completion %f", duration)
-        return duration
-      }
-    }
-    elev.Floor += int(elev.Dir)
-    duration += TRAVEL_TIME
-    //fmt.Println("Duration until now %f", duration)
-  }
+func EstimatedCompletionTime(elev Elevator, orderEvent OrderEvent) float64 { // TO DO
+	duration := 0.0
+	elev.Orders[orderEvent.Floor][orderEvent.Button] = true
+	switch elev.State {
+	case IDLE:
+		updateElevatorDirection(&elev)
+		if elev.Dir == elevio.MD_Stop {
+			return duration
+		}
+	case DRIVE:
+		duration += TRAVEL_TIME / 2
+		elev.Floor += int(elev.Dir)
+	case DOOR_OPEN:
+		//duration -= DOOR_OPEN_TIME/2
+		//updateElevatorDirection(&elev)
+		//if(elev.Dir == elevio.MD_Stop){
+		//  return duration
+		//}
+		duration -= DOOR_OPEN_TIME
+		elev.Orders[elev.Floor][elevio.BT_Cab] = true
+	}
+	for {
+		if elevShouldOpenDoor(elev) {
+			duration += DOOR_OPEN_TIME
+			clearOrdersAtFloor(&elev)
+			updateElevatorDirection(&elev)
+			if elev.Dir == elevio.MD_Stop || duration > 60.0 { // TO DO
+				fmt.Println("Duration until completion %f", duration)
+				return duration
+			}
+		}
+		elev.Floor += int(elev.Dir)
+		duration += TRAVEL_TIME
+		//fmt.Println("Duration until now %f", duration)
+	}
 }
