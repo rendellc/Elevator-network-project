@@ -196,7 +196,6 @@ func FSM(simAddr string, addHallOrderCh <-chan OrderEvent, deleteHallOrderCh <-c
 	for {
 		select {
 		case buttonEvent := <-buttonCh:
-			fmt.Println("Button Event")
 			if buttonEvent.Button == elevio.BT_Cab {
 				fmt.Println("Button Event: Cab order")
 				elevator.Orders[buttonEvent.Floor][buttonEvent.Button] = true

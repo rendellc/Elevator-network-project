@@ -266,7 +266,18 @@ func PseudoOrderHandlerAndFsm(id string, simAddr string, thisElevatorHeartbeatCh
 			thisElevatorOrdersUpdated = true // for debugging
 
 		case buttonEvent := <-placedHallOrderCh: // OK
-			placedOrderCh <- msgs.Order{Floor: buttonEvent.Floor, Type: buttonEvent.Button}
+
+			// Create order with unique ID (atleast unique to this elevator)
+			orderID := 0
+			exists := true
+			for exists {
+				orderID = rnd.Intn(100000)
+				_, exists = orders[orderID]
+			}
+
+			order := msgs.Order{ID: orderID, Floor: buttonEvent.Floor, Type: buttonEvent.Button}
+			orders[orderID] = order
+			placedOrderCh <- order
 		case safeMsg := <-safeOrderCh:
 			fmt.Printf("[safeOrderCh]: %v\n", safeMsg)
 			if safeMsg.ReceiverID == id {
