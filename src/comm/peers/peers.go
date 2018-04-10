@@ -11,8 +11,10 @@ import (
 	"time"
 )
 
+type elevatorStatusType interface{}
+
 type PeerUpdate struct {
-	Peers msgs.ElevatorStatusSlice
+	Peers []elevatorStatusType
 	New   string
 	Lost  msgs.HeartbeatSlice
 }
