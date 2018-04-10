@@ -1,7 +1,7 @@
 package msgs
 
 import (
-	"../elevio/elevio"
+	"../elevio"
 	"../fsm"
 )
 
@@ -43,28 +43,4 @@ func (h HeartbeatSlice) Less(i, j int) bool {
 
 func (h HeartbeatSlice) Swap(i, j int) {
 	h[i], h[j] = h[j], h[i]
-}
-
-// nice printing
-func (d elevio.MotorDirection) String() string {
-	switch d {
-	case elevio.MD_Up:
-		return "↑"
-	case elevio.Md_Down:
-		return "↓"
-	case elevio.MD_Stop:
-		return "⛔"
-	}
-	return "-invalidDirection-"
-}
-
-func (t OrderType) String() string {
-	switch t {
-	case elevio.BT_HallUp:
-		return "Hall ↑"
-	case elevio.BT_HallDown:
-		return "Hall ↓"
-	case elevio.BT_Cab:
-		return "Cab"
-	}
 }
