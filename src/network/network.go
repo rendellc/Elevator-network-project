@@ -19,22 +19,22 @@ const giveupAckwaitTimeout = 5 * time.Second
 
 func Launch(id string,
 	thisElevatorStatusCh <-chan msgs.ElevatorStatus, otherElevatorsStatusCh chan<- []msgs.ElevatorStatus, downedElevatorsCh chan<- []msgs.Heartbeat,
-	placeOrderCh <-chan msgs.Order, thisTakeOrderCh chan<- msgs.TakeOrderMsg, otherTakeOrderCh <-chan msgs.TakeOrderMsg,
+	placedOrderCh <-chan msgs.Order, thisTakeOrderCh chan<- msgs.TakeOrderMsg, otherTakeOrderCh <-chan msgs.TakeOrderMsg,
 	safeOrderCh chan<- msgs.SafeOrderMsg, completedOrderCh <-chan msgs.Order) {
 
-	orderPlacedSendCh := make(chan msgs.PlaceOrderMsg)
-	orderPlacedAckSendCh := make(chan msgs.OrderPlacedAck)
+	placedOrderSendCh := make(chan msgs.PlacedOrderMsg)
+	placedOrderAckSendCh := make(chan msgs.PlacedOrderAck)
 	takeOrderAckSendCh := make(chan msgs.TakeOrderAck)
 	takeOrderSendCh := make(chan msgs.TakeOrderMsg)
 	completeOrderSendCh := make(chan msgs.CompleteOrderMsg)
-	go bcast.Transmitter(port, orderPlacedSendCh, orderPlacedAckSendCh, takeOrderAckSendCh, takeOrderSendCh, completeOrderSendCh)
+	go bcast.Transmitter(port, placedOrderSendCh, placedOrderAckSendCh, takeOrderAckSendCh, takeOrderSendCh, completeOrderSendCh)
 
-	orderPlacedRecvCh := make(chan msgs.PlaceOrderMsg)
-	orderPlacedAckRecvCh := make(chan msgs.OrderPlacedAck)
+	placedOrderRecvCh := make(chan msgs.PlacedOrderMsg)
+	placedOrderAckRecvCh := make(chan msgs.PlacedOrderAck)
 	takeOrderAckRecvCh := make(chan msgs.TakeOrderAck)
 	takeOrderRecvCh := make(chan msgs.TakeOrderMsg)
 	completeOrderRecvCh := make(chan msgs.CompleteOrderMsg)
-	go bcast.Receiver(port, orderPlacedRecvCh, orderPlacedAckRecvCh, takeOrderAckRecvCh, takeOrderRecvCh, completeOrderRecvCh)
+	go bcast.Receiver(port, placedOrderRecvCh, placedOrderAckRecvCh, takeOrderAckRecvCh, takeOrderRecvCh, completeOrderRecvCh)
 
 	peerTxEnable := make(chan bool)
 	peerStatusSendCh := make(chan msgs.Heartbeat)
@@ -51,10 +51,10 @@ func Launch(id string,
 
 	for {
 		select {
-		case msg := <-orderPlacedRecvCh:
+		case msg := <-placedOrderRecvCh:
 			// store order
 			if _, exists := ordersRecieved[msg.Order.ID]; exists {
-				fmt.Printf("[orderPlacedRecvCh]: Warning, order id %v already exists, new order ignored", msg.Order.ID)
+				fmt.Printf("[placedOrderRecvCh]: Warning, order id %v already exists, new order ignored", msg.Order.ID)
 				break
 			}
 			ordersRecieved[msg.Order.ID] = msg.Order
@@ -63,29 +63,29 @@ func Launch(id string,
 				// Order transmitted from other node
 
 				// acknowledge order
-				ack := msgs.OrderPlacedAck{SenderID: id,
+				ack := msgs.PlacedOrderAck{SenderID: id,
 					RecieverID: msg.SenderID,
 					Order:      msg.Order}
-				fmt.Printf("[orderPlacedRecvCh]: Sending ack to %v for order %v\n", ack.RecieverID, ack.Order.ID)
-				orderPlacedAckSendCh <- ack
+				fmt.Printf("[placedOrderRecvCh]: Sending ack to %v for order %v\n", ack.RecieverID, ack.Order.ID)
+				placedOrderAckSendCh <- ack
 			} else {
 				// This node has sent out an order. Needs to listen for acks
 				if ackwait, exists := placeUnackedOrders[msg.Order.ID]; exists {
-					fmt.Printf("[orderPlacedRecvCh]: Warning, ack wait id %v already exists %v\n", msg.Order.ID, time.Now().Sub(ackwait))
+					fmt.Printf("[placedOrderRecvCh]: Warning, ack wait id %v already exists %v\n", msg.Order.ID, time.Now().Sub(ackwait))
 				} else {
 					placeUnackedOrders[msg.Order.ID] = time.Now()
 				}
 			}
-		case order := <-placeOrderCh:
-			orderPlacedSendCh <- msgs.PlaceOrderMsg{SenderID: id, Order: order}
-		case msg := <-orderPlacedAckRecvCh:
+		case order := <-placedOrderCh:
+			placedOrderSendCh <- msgs.PlacedOrderMsg{SenderID: id, Order: order}
+		case msg := <-placedOrderAckRecvCh:
 			if msg.RecieverID == id { // ignore msgs to other nodes
 				// Acknowledgement recieved from other node
 				if _, ok := placeUnackedOrders[msg.Order.ID]; !ok {
 					break // Not waiting for acknowledgment
 				}
 
-				fmt.Printf("[orderPlacedAckRecvCh]: %v acknowledged\n", msg.Order.ID)
+				fmt.Printf("[placedOrderAckRecvCh]: %v acknowledged\n", msg.Order.ID)
 				delete(placeUnackedOrders, msg.Order.ID)
 
 				// Order is safe since multiple elevators knows about it
@@ -184,7 +184,7 @@ func Launch(id string,
 
 // pseudo-orderHandler and fsm
 func PseudoOrderHandlerAndFsm(id string, thisElevatorStatusCh chan<- msgs.ElevatorStatus, otherElevatorsStatusCh <-chan []msgs.ElevatorStatus, downedElevatorsCh <-chan []msgs.Heartbeat,
-	placeOrderCh chan<- msgs.Order, thisTakeOrderCh <-chan msgs.TakeOrderMsg, otherTakeOrderCh chan<- msgs.TakeOrderMsg,
+	placedOrderCh chan<- msgs.Order, thisTakeOrderCh <-chan msgs.TakeOrderMsg, otherTakeOrderCh chan<- msgs.TakeOrderMsg,
 	safeOrderCh <-chan msgs.SafeOrderMsg, completedOrderCh chan<- msgs.Order) {
 
 	calculateOrderScore := func(status msgs.ElevatorStatus, order msgs.Order) int {
@@ -208,9 +208,9 @@ func PseudoOrderHandlerAndFsm(id string, thisElevatorStatusCh chan<- msgs.Elevat
 	thisElevatorOrders := make(map[int]bool) // used as a set
 	thisElevatorOrdersUpdated := false
 
-	dbg_placeOrderCh := make(chan msgs.Debug_placeOrderMsg)
+	dbg_placedOrderCh := make(chan msgs.Debug_placeOrderMsg)
 	dbg_acceptOrderCh := make(chan msgs.Debug_acceptOrderMsg)
-	go bcast.Receiver(port, dbg_placeOrderCh, dbg_acceptOrderCh)
+	go bcast.Receiver(port, dbg_placedOrderCh, dbg_acceptOrderCh)
 
 	const fsmMaxFloor int = 4
 	fsmStatus := msgs.ElevatorStatus{ID: id, Direction: msgs.Up, Floor: 1 + rnd.Intn(fsmMaxFloor-1)}
@@ -239,55 +239,6 @@ func PseudoOrderHandlerAndFsm(id string, thisElevatorStatusCh chan<- msgs.Elevat
 					thisElevatorOrders[order.ID] = true
 				}
 			}
-		//case msg := <-dbg_placeOrderCh:
-		//	if msg.RecieverID == id {
-		//		order := msgs.PlaceOrderMsg{SenderID: id, Order: msg.Order}
-
-		//		if _, exists := orders[msg.Order.ID]; exists {
-		//			fmt.Printf("[dbg_placeOrderCh]: Warning, order id %v already exists, new order ignored\n", order.Order.ID)
-		//			break
-		//		}
-
-		//		// error checking
-		//		if order.Order.Floor == 1 && order.Order.Direction == msgs.Down ||
-		//			order.Order.Floor == fsmMaxFloor && order.Order.Direction == msgs.Up {
-		//			fmt.Printf("[dbg_placeOrderCh]: Invalid order: %+v\n", order.Order)
-		//			break
-		//		}
-
-		//		orders[order.Order.ID] = order.Order
-		//		placeOrderCh <- order
-		//	}
-		//case acceptOrder := <-dbg_acceptOrderCh:
-		//	if acceptOrder.RecieverID == id {
-		//		if _, exists := orders[acceptOrder.Order.ID]; exists {
-		//			acceptedOrders[acceptOrder.Order.ID] = true
-
-		//			scoreMap := make(map[string]int)
-		//			for _, elevator := range elevators {
-		//				scoreMap[elevator.ID] = calculateOrderScore(elevator, orders[acceptOrder.Order.ID])
-		//			}
-
-		//			// find best (lowest) score
-		//			bestID := id
-		//			for id, score := range scoreMap {
-		//				if score < scoreMap[bestID] {
-		//					bestID = id
-		//				}
-		//			}
-
-		//			fmt.Printf("[orderHandler]: elevator %v should take order %v (%v)\n", bestID, acceptOrder.Order.ID, scoreMap)
-		//			if bestID != id {
-		//				takeOrderMsg := msgs.TakeOrderMsg{SenderID: id, RecieverID: bestID, Order: orders[acceptOrder.Order.ID]}
-		//				otherTakeOrderCh <- takeOrderMsg
-		//			} else {
-		//				thisElevatorOrders[acceptOrder.Order.ID] = true
-		//				thisElevatorOrdersUpdated = true // for debugging
-		//			}
-		//		} else {
-		//			fmt.Println("[orderHandler]: order didn't exist")
-		//		}
-		//	}
 		case <-time.After(20 * time.Second):
 			fmt.Println("[fsm] status: ", fsmStatus)
 		case <-time.After(5 * time.Second):

@@ -27,14 +27,14 @@ type OrderMsg struct {
 	Order      Order  `json:"order"`
 }
 
-type PlaceOrderMsg OrderMsg
-type OrderPlacedAck OrderMsg
+type PlacedOrderMsg OrderMsg
+type PlacedOrderAck OrderMsg
 type TakeOrderMsg OrderMsg
 type TakeOrderAck OrderMsg
 type SafeOrderMsg OrderMsg
 type CompleteOrderMsg OrderMsg
 
-type Debug_placeOrderMsg PlaceOrderMsg
+type Debug_placeOrderMsg PlacedOrderMsg
 type Debug_acceptOrderMsg SafeOrderMsg
 
 type ElevatorStatus struct {

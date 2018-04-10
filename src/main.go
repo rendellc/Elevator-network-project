@@ -26,7 +26,7 @@ func main() {
 	// OrderHandler channels
 	otherElevatorsStatusCh := make(chan []msgs.ElevatorStatus)
 	downedElevatorsCh := make(chan []msgs.Heartbeat)
-	placeOrderCh := make(chan msgs.Order)
+	placedOrderCh := make(chan msgs.Order)
 	thisTakeOrderCh := make(chan msgs.TakeOrderMsg)
 	otherTakeOrderCh := make(chan msgs.TakeOrderMsg)
 	safeOrderCh := make(chan msgs.SafeOrderMsg)
@@ -34,12 +34,12 @@ func main() {
 
 	go network.Launch(*id_ptr,
 		thisElevatorStatusCh, otherElevatorsStatusCh, downedElevatorsCh,
-		placeOrderCh, thisTakeOrderCh, otherTakeOrderCh,
+		placedOrderCh, thisTakeOrderCh, otherTakeOrderCh,
 		safeOrderCh, completedOrderCh)
 
 	go network.PseudoOrderHandlerAndFsm(*id_ptr,
 		thisElevatorStatusCh, otherElevatorsStatusCh, downedElevatorsCh,
-		placeOrderCh, thisTakeOrderCh, otherTakeOrderCh,
+		placedOrderCh, thisTakeOrderCh, otherTakeOrderCh,
 		safeOrderCh, completedOrderCh)
 
 	fmt.Println("Listening")
@@ -117,7 +117,7 @@ func main() {
 
 			order := msgs.Order{ID: id, Floor: f, Direction: dir}
 			fmt.Printf("Order: %+v\n", order)
-			placeOrderCh <- order
+			placedOrderCh <- order
 		}
 	}
 }
