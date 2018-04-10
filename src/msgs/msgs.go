@@ -20,12 +20,12 @@ type Order struct {
 
 type OrderMsg struct {
 	SenderID   string `json:"sender_id"`
-	RecieverID string `json:"reciever_id"`
+	ReceiverID string `json:"reciever_id"`
 	Order      Order  `json:"order"`
 }
 
-type PlaceOrderMsg OrderMsg
-type OrderPlacedAck OrderMsg
+type PlacedOrderMsg OrderMsg
+type PlacedOrderAck OrderMsg
 type TakeOrderMsg OrderMsg
 type TakeOrderAck OrderMsg
 type SafeOrderMsg OrderMsg

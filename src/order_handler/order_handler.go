@@ -21,7 +21,7 @@ func simplified_order_controller(drv_intern_hall_order chan<- OrderEvent, drv_ha
 const TRAVEL_TIME = 2.5
 const DOOR_OPEN_TIME = door_open_time_threshold
 
-func estimated_completion_time(elev Elevator, button_event elevio.ButtonEvent) float64{// TO DO
+func EstimatedCompletionTime(elev Elevator, button_event elevio.ButtonEvent) float64{// TO DO
   duration := 0.0
   elev.Orders[button_event.Floor][button_event.Button]=true
   switch elev.State {
