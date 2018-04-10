@@ -26,7 +26,7 @@ type CompleteOrderMsg OrderMsg
 
 type Heartbeat struct {
 	SenderID       string       `json:"sender_id"`
-	ElevatorStatus fsm.Elevator `json:"elevator_status"`
+	Status         fsm.Elevator `json:"elevator_status"`
 	AcceptedOrders []Order      `json:"accepted_orders"`
 }
 

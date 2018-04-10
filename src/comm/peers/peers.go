@@ -1,22 +1,20 @@
 package peers
 
 import (
+	"../../fsm"
 	"../../msgs"
 	"../conn"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net"
-	"sort"
 	"time"
 )
 
-type elevatorStatusType interface{}
-
 type PeerUpdate struct {
-	Peers []elevatorStatusType
+	Peers []fsm.Elevator
 	New   string
-	Lost  msgs.HeartbeatSlice
+	Lost  []msgs.Heartbeat
 }
 
 type observation struct {
@@ -99,14 +97,12 @@ func Receiver(port int, peerUpdateCh chan<- PeerUpdate /*, statusCh chan<- msgs.
 
 		// Sending update
 		if updated {
-			p.Peers = make(msgs.ElevatorStatusSlice, 0, len(lastSeen))
+			p.Peers = make([]fsm.Elevator, 0, len(lastSeen))
 
 			for _, v := range lastSeen {
 				p.Peers = append(p.Peers, v.Heartbeat.Status)
 			}
 
-			sort.Sort(p.Peers)
-			sort.Sort(p.Lost)
 			peerUpdateCh <- p
 		}
 	}
