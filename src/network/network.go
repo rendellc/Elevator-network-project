@@ -194,7 +194,7 @@ func PseudoOrderHandlerAndFsm(id string, simAddr string, thisElevatorHeartbeatCh
 	addHallOrderCh := make(chan fsm.OrderEvent)
 	deleteHallOrderCh := make(chan fsm.OrderEvent)
 	placedHallOrderCh := make(chan fsm.OrderEvent)
-	completedHallOrderCh := make(chan fsm.OrderEvent)
+	completedHallOrderCh := make(chan []fsm.OrderEvent)
 	elevatorStatusCh := make(chan fsm.Elevator)
 	go fsm.FSM(simAddr, addHallOrderCh, deleteHallOrderCh, placedHallOrderCh, completedHallOrderCh, elevatorStatusCh)
 	var elevatorStatus fsm.Elevator
@@ -238,17 +238,19 @@ func PseudoOrderHandlerAndFsm(id string, simAddr string, thisElevatorHeartbeatCh
 			}
 		case <-time.After(20 * time.Second): // debugging. OK
 			fmt.Println("[fsm] status: ", elevatorStatus)
-		case buttonEvent := <-completedHallOrderCh: // OK
-			for orderID, _ := range thisElevatorOrders {
-				if orders[orderID].Floor == buttonEvent.Floor &&
-					orders[orderID].Type == buttonEvent.Button {
-					fmt.Printf("[fsm]: completed order %v\n", orderID)
-					// broadcast to network that order is completed
-					completedOrderCh <- orders[orderID]
-					// remove order from orderHandler/fsm
-					thisElevatorOrdersUpdated = true // for debugging
-					delete(acceptedOrders, orderID)
-					delete(orders, orderID)
+		case orderEventSlice := <-completedHallOrderCh: // OK
+			for _, completedOrder := range orderEventSlice {
+				for orderID, _ := range thisElevatorOrders {
+					if orders[orderID].Floor == completedOrder.Floor &&
+						orders[orderID].Type == completedOrder.Button {
+						fmt.Printf("[fsm->network]: completed order %v\n", orderID)
+						// broadcast to network that order is completed
+						completedOrderCh <- orders[orderID]
+						// remove order from orderHandler/fsm
+						thisElevatorOrdersUpdated = true // for debugging
+						delete(acceptedOrders, orderID)
+						delete(orders, orderID) // remove order from system
+					}
 				}
 			}
 		case msg := <-thisTakeOrderCh: // OK
