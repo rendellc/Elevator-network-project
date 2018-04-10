@@ -6,9 +6,9 @@ import (
 )
 
 type Order struct {
-	ID    int       `json:"order_id"`
-	Floor int       `json:"floor"`
-	Type  OrderType `json:"type"`
+	ID    int               `json:"order_id"`
+	Floor int               `json:"floor"`
+	Type  elevio.ButtonType `json:"button_type"`
 }
 
 type OrderMsg struct {
