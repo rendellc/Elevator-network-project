@@ -163,12 +163,6 @@ func clearOrdersAtFloor(elev *Elevator, simulationMode bool) {
 	}
 }
 
-type OrderEvent struct {
-	Floor       int
-	Button      elevio.ButtonType
-	TurnLightOn bool
-}
-
 func FSM(addHallOrderCh <-chan OrderEvent, deleteHallOrderCh <-chan OrderEvent,
   placedHallOrderCh chan<- OrderEvent, completedHallOrderCh chan<- []OrderEvent,
   elevatorStatusCh chan<- Elevator){
