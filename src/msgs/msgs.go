@@ -1,29 +1,27 @@
 package msgs
 
-type Direction int
-
-const (
-	Up Direction = -1 + iota
-	Stop
-	Down
+import (
+	"./elevio/elevio"
+	"./fsm"
 )
 
-type OrderType string
+type Direction elevio.MotorDirection
 
-const (
-	CabCall  OrderType = "cab"
-	HallCall OrderType = "hall"
-)
+type ElevatorStatus fsm.Elevator
+
+type OrderType elevio.ButtonType
+
+type ElevatorState fsm.State
 
 type Order struct {
-	ID        int       `json:"order_id"`
-	Floor     int       `json:"floor"`
-	Direction Direction `json:"direction"`
+	ID    int       `json:"order_id"`
+	Floor int       `json:"floor"`
+	Type  OrderType `json:"type"`
 }
 
 type OrderMsg struct {
 	SenderID   string `json:"sender_id"`
-	RecieverID string `json:"reciever_id"`
+	ReceiverID string `json:"reciever_id"`
 	Order      Order  `json:"order"`
 }
 
@@ -37,16 +35,9 @@ type CompleteOrderMsg OrderMsg
 type Debug_placeOrderMsg PlacedOrderMsg
 type Debug_acceptOrderMsg SafeOrderMsg
 
-type ElevatorStatus struct {
-	ID        string    `json:"id"`
-	Floor     int       `json:"floor"`
-	Direction Direction `json:"direction"`
-	Stopped   bool      `json:"stopped"`
-}
-
 type Heartbeat struct {
 	SenderID       string         `json:"sender_id"`
-	Status         ElevatorStatus `json:"elevator_state"`
+	ElevatorStatus ElevatorStatus `json:"elevator_status"`
 	AcceptedOrders []Order        `json:"accepted_orders"`
 }
 
@@ -83,15 +74,23 @@ func (e ElevatorStatusSlice) Swap(i, j int) {
 // nice printing
 func (d Direction) String() string {
 	switch d {
-	case Up:
+	case elevio.MD_Up:
 		return "↑"
-	case Down:
+	case elevio.Md_Down:
 		return "↓"
-	case Stop:
+	case elevio.MD_Stop:
 		return "⛔"
 	}
 	return "-invalidDirection-"
 }
+
 func (t OrderType) String() string {
-	return string(t)
+	switch t {
+	case elevio.BT_HallUp:
+		return "Hall ↑"
+	case elevio.BT_HallDown:
+		return "Hall ↓"
+	case elevio.BT_Cab:
+		return "Cab"
+	}
 }
