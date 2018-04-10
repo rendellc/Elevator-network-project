@@ -300,15 +300,18 @@ func EstimatedCompletionTime(elev Elevator, button_event elevio.ButtonEvent) flo
   switch elev.State {
   case IDLE:
     update_elevator_direction(&elev)
-    if(elev.Dirn == elevio.MD_Stop){
+    if(elev.Dir == elevio.MD_Stop){
       return duration
     }
   case DRIVE:
     duration += TRAVEL_TIME/2
-    elev.Floor += int(elev.Dirn)
+    elev.Floor += int(elev.Dir)
   case DOOR_OPEN:
     //duration -= DOOR_OPEN_TIME/2
     //update_elevator_direction(&elev)
+    //if(elev.Dir == elevio.MD_Stop){
+    //  return duration
+    //}
     duration -= DOOR_OPEN_TIME
     elev.Orders[elev.Floor][elevio.BT_Cab]=true
   }
@@ -317,12 +320,12 @@ func EstimatedCompletionTime(elev Elevator, button_event elevio.ButtonEvent) flo
       duration += DOOR_OPEN_TIME
       clear_requests_at_floor(&elev)
       update_elevator_direction(&elev)
-      if(elev.Dirn == elevio.MD_Stop || duration > 60.0){// TO DO
+      if(elev.Dir == elevio.MD_Stop || duration > 60.0){// TO DO
         fmt.Println("Duration until completion %f", duration)
         return duration
       }
     }
-    elev.Floor += int(elev.Dirn)
+    elev.Floor += int(elev.Dir)
     duration += TRAVEL_TIME
     //fmt.Println("Duration until now %f", duration)
   }
