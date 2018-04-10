@@ -186,7 +186,7 @@ func Launch(id string,
 }
 
 // pseudo-orderHandler and fsm
-func PseudoOrderHandlerAndFsm(id string, thisElevatorHeartbeatCh chan<- msgs.Heartbeat,
+func PseudoOrderHandlerAndFsm(id string, simAddr string, thisElevatorHeartbeatCh chan<- msgs.Heartbeat,
 	allElevatorsHeartbeatCh <-chan []msgs.Heartbeat, downedElevatorsCh <-chan []msgs.Heartbeat,
 	placedOrderCh chan<- msgs.Order, thisTakeOrderCh <-chan msgs.TakeOrderMsg, otherTakeOrderCh chan<- msgs.TakeOrderMsg,
 	safeOrderCh <-chan msgs.SafeOrderMsg, completedOrderCh chan<- msgs.Order) {
@@ -196,7 +196,7 @@ func PseudoOrderHandlerAndFsm(id string, thisElevatorHeartbeatCh chan<- msgs.Hea
 	placedHallOrderCh := make(chan fsm.OrderEvent)
 	completedHallOrderCh := make(chan fsm.OrderEvent)
 	elevatorStatusCh := make(chan fsm.Elevator)
-	go fsm.FSM(addHallOrderCh, deleteHallOrderCh, placedHallOrderCh, completedHallOrderCh, elevatorStatusCh)
+	go fsm.FSM(simAddr, addHallOrderCh, deleteHallOrderCh, placedHallOrderCh, completedHallOrderCh, elevatorStatusCh)
 	var elevatorStatus fsm.Elevator
 
 	orders := make(map[int]msgs.Order)

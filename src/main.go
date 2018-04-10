@@ -4,12 +4,12 @@ import (
 	"./msgs"
 	"./network"
 	"flag"
-	"fmt"
 	"math/rand"
 	"time"
 )
 
 var id_ptr = flag.String("id", "noid", "ID for node")
+var simAddr_ptr = flag.String("addr", "noid", "Port for node")
 
 var rnd = rand.New(rand.NewSource(time.Now().UnixNano()))
 
@@ -31,31 +31,10 @@ func main() {
 		placedOrderCh, thisTakeOrderCh, otherTakeOrderCh,
 		safeOrderCh, completedOrderCh)
 
-	go network.PseudoOrderHandlerAndFsm(*id_ptr,
+	go network.PseudoOrderHandlerAndFsm(*id_ptr, *simAddr_ptr,
 		thisElevatorStatusCh, allElevatorsHeartbeatCh, downedElevatorsCh,
 		placedOrderCh, thisTakeOrderCh, otherTakeOrderCh,
 		safeOrderCh, completedOrderCh)
-
-	fmt.Println("Listening")
-	// block forever
-	//reader := bufio.NewReader(os.Stdin)
-	//commands := map[string][]string{"place": []string{"f", "d", "t"}}
-
-	//getIntInput := func() (num int, ok bool) {
-	//	input, err := reader.ReadString('\n')
-	//	if err != nil {
-	//		fmt.Fprintf(os.Stderr, fmt.Sprintf("%v", err))
-	//		return 100, false
-	//	}
-
-	//	input = strings.TrimSuffix(input, "\n")
-	//	num, err = strconv.Atoi(input)
-	//	if err != nil {
-	//		fmt.Fprintf(os.Stderr, fmt.Sprintf("%v", err))
-	//		return 1000, false
-	//	}
-	//	return num, true
-	//}
 
 	for {
 		select {}

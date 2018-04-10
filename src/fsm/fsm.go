@@ -174,12 +174,13 @@ func clearLightsAtFloor(elev Elevator) { // ???
 	}
 }
 
-func FSM(addHallOrderCh <-chan OrderEvent, deleteHallOrderCh <-chan OrderEvent,
+func FSM(simAddr string, addHallOrderCh <-chan OrderEvent, deleteHallOrderCh <-chan OrderEvent,
 	placedHallOrderCh chan<- OrderEvent, completedHallOrderCh chan<- OrderEvent,
 	elevatorStatusCh chan<- Elevator) {
 
 	fmt.Println("Lets start")
-	elevio.Init("localhost:15657", N_FLOORS)
+	elevio.Init(simAddr, N_FLOORS)
+	//elevio.Init("localhost:15657", N_FLOORS)
 	fmt.Println("Hardware initialized")
 	buttonCh := make(chan elevio.ButtonEvent)
 	floorSensorCh := make(chan int)
