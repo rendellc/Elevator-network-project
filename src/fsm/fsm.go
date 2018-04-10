@@ -22,6 +22,12 @@ type Elevator struct {
 	State  State
 }
 
+type OrderEvent struct {
+	Floor       int
+	Button      elevio.ButtonType
+	TurnLightOn bool
+}
+
 const N_FLOORS = 4 //import
 const N_BUTTONS = 3
 const TRAVEL_TIME = 2.5

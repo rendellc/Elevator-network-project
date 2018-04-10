@@ -1,7 +1,6 @@
 package peers
 
 import (
-	"../../fsm"
 	"../../msgs"
 	"../conn"
 	"encoding/json"
@@ -12,7 +11,7 @@ import (
 )
 
 type PeerUpdate struct {
-	Peers []fsm.Elevator
+	Peers []msgs.Heartbeat
 	New   string
 	Lost  []msgs.Heartbeat
 }
@@ -97,10 +96,10 @@ func Receiver(port int, peerUpdateCh chan<- PeerUpdate /*, statusCh chan<- msgs.
 
 		// Sending update
 		if updated {
-			p.Peers = make([]fsm.Elevator, 0, len(lastSeen))
+			p.Peers = make([]msgs.Heartbeat, 0, len(lastSeen))
 
 			for _, v := range lastSeen {
-				p.Peers = append(p.Peers, v.Heartbeat.Status)
+				p.Peers = append(p.Peers, v.Heartbeat)
 			}
 
 			peerUpdateCh <- p
