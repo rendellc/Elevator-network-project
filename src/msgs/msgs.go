@@ -1,11 +1,12 @@
 package msgs
 
-type Direction int
-
-const (
-	Up Direction = iota
-	Down
+import(
+	"./elevio/elevio"
+	"./fsm"
 )
+
+
+type Direction elevio.MotorDirection
 
 type OrderType string
 
@@ -46,17 +47,11 @@ type Debug_placeOrderMsg PlaceOrderMsg
 type Debug_acceptOrderMsg SafeOrderMsg
 
 type ElevatorStatus struct {
-	ID string `json:"id"`
-
-	Floor     int       `json:"floor"`
-	Direction Direction `json:"direction"`
-	Stopped   bool      `json:"stopped"`
-}
-
-type ElevatorStatus struct {
-	Direction  Direction
-	Floor      int
-	ElevatorID string
+	ID string 												`json:"id"`
+	Floor int													`json:"floor"`
+	Dir Direction											`json:"direction"`
+	Orders[N_FLOORS][N_BUTTONS] bool	`json:"orders"`
+	State fsm.State										`json:"behaviour"`
 }
 
 type Heartbeat struct {
@@ -98,10 +93,12 @@ func (e ElevatorStatusSlice) Swap(i, j int) {
 // nice printing
 func (d Direction) String() string {
 	switch d {
-	case Up:
+	case elevio.MD_Up:
 		return "↑"
-	case Down:
+	case elevio.Md_Down:
 		return "↓"
+	case elevio.MD_Stop:
+		return "⛔"
 	}
 	return "-invalidDirection-"
 }

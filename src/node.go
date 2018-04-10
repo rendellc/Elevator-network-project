@@ -4,6 +4,7 @@ import (
 	"./comm/bcast"
 	"./comm/peers"
 	"./msgs"
+	"./fsm"
 	"flag"
 	"fmt"
 	"math"
@@ -198,6 +199,157 @@ func pseudoOrderHandlerAndFsm(thisElevatorHeartbeatCh chan<- msgs.Heartbeat, ele
 	thisTakeOrderCh <-chan msgs.TakeOrderMsg, otherTakeOrderCh chan<- msgs.TakeOrderMsg,
 	safeOrderCh <-chan msgs.SafeOrderMsg, completedOrderCh chan<- msgs.Order) {
 
+		drv_intern_hall_order := make(chan OrderEvent)
+		drv_hall_button_event := make(chan elevio.ButtonEvent)
+		elevatorStatusCh			:= make(chan fsm.Elevator)
+		go fsm.fsm_module(drv_intern_hall_order, drv_hall_button_event, elevatorStatusCh)
+
+
+		orders := make(map[int]msgs.Order)
+		acceptedOrders := make(map[int]bool)     // used as a set
+		thisElevatorOrders := make(map[int]bool) // used as a set
+		thisElevatorOrdersUpdated := false
+
+		dbg_placeOrderCh := make(chan msgs.Debug_placeOrderMsg)
+		dbg_acceptOrderCh := make(chan msgs.Debug_acceptOrderMsg)
+		go bcast.Receiver(port, dbg_placeOrderCh, dbg_acceptOrderCh)
+
+		const fsmMaxFloor int = 4
+		fsmStatus := msgs.ElevatorStatus{ID: *id_ptr, Direction: msgs.Up, Floor: 1 + rnd.Intn(fsmMaxFloor-1)}
+
+		fmt.Println("[fsm] started at: ", fsmStatus)
+		thisElevatorHeartbeatCh <- msgs.Heartbeat{SenderID: *id_ptr, Status: fsmStatus, AcceptedOrders: []msgs.Order{}}
+
+		var elevators []msgs.ElevatorStatus
+
+		for {
+			select {
+			case elevators = <-elevatorsStatusCh:	// debugging. OK
+				fmt.Printf("[orderHandler]: elevators: ")
+				for _, elevator := range elevators {
+					fmt.Printf("%v ", elevator.ID)
+				}
+				fmt.Printf("\n")
+
+			case downedElevators := <-downedElevatorsCh:
+				for _, lastHeartbeat := range downedElevators {
+					// elevator is down
+					fmt.Printf("[orderHandler]: down: %+v %v\n", lastHeartbeat.SenderID, lastHeartbeat.AcceptedOrders)
+
+					// take order this elevator had
+					for _, order := range lastHeartbeat.AcceptedOrders {
+						orders[order.ID] = order
+						thisElevatorOrders[order.ID] = true
+					}
+				}
+
+			case <-time.After(20 * time.Second): // debugging. OK
+				fmt.Println("[fsm] status: ", fsmStatus)
+
+			case fsmStatus <- elevatorStatusCh:
+				// pseudo-fsm
+
+			case buttonEvent <- completedHallOrderCh:
+				// check if we can complete an order
+				fsmStatus.Stopped = false
+				for orderID, _ := range thisElevatorOrders {
+					if orders[orderID].Floor == fsmStatus.Floor &&
+						orders[orderID].Direction == fsmStatus.Direction {
+						fmt.Printf("[fsm]: completing order %v\n", orderID)
+						fsmStatus.Stopped = true
+
+						// broadcast to network that order is completed
+						completedOrderCh <- orders[orderID]
+
+						// remove order from orderHandler/fsm
+						delete(thisElevatorOrders, orderID)
+						thisElevatorOrdersUpdated = true // for debugging
+						delete(acceptedOrders, orderID)
+						delete(orders, orderID)
+					}
+				}
+
+				if !fsmStatus.Stopped {
+					if fsmStatus.Floor == fsmMaxFloor {
+						fsmStatus.Direction = msgs.Down
+					} else if fsmStatus.Floor == 1 {
+						fsmStatus.Direction = msgs.Up
+					}
+					if fsmStatus.Direction == msgs.Up {
+						fsmStatus.Floor += 1
+					} else if fsmStatus.Direction == msgs.Down {
+						fsmStatus.Floor -= 1
+					}
+				}
+
+				var acceptedOrderList []msgs.Order
+				for orderID, _ := range acceptedOrders {
+					if order, exists := orders[orderID]; exists {
+						acceptedOrderList = append(acceptedOrderList, order)
+					} else {
+						fmt.Printf("[thisElevatorHeartbeatCh]: Warn: orderID %v didn't exist")
+					}
+				}
+
+				thisElevatorHeartbeatCh <- msgs.Heartbeat{SenderID: *id_ptr, Status: fsmStatus, AcceptedOrders: acceptedOrderList}
+			case msg := <-thisTakeOrderCh:
+				if _, exists := orders[msg.Order.ID]; !exists {
+					fmt.Printf("[thisTakeOrderCh]: didnt have order %v,from before, %v\n", msg.Order.ID, orders)
+					orders[msg.Order.ID] = msg.Order
+				}
+				// error checking
+				if orders[msg.Order.ID] != msg.Order {
+					fmt.Printf("[thisTakeOrderCh]: had different order with same ID \n\t(my)%+v\n\t(recv)%+v\n", orders[msg.Order.ID], msg.Order)
+				}
+
+				acceptedOrders[msg.Order.ID] = true
+				thisElevatorOrders[msg.Order.ID] = true
+				thisElevatorOrdersUpdated = true // for debugging
+			case safeMsg := <-safeOrderCh:
+				fmt.Printf("[safeOrderCh]: %v\n", safeMsg)
+				if safeMsg.RecieverID == *id_ptr {
+					if _, exists := orders[safeMsg.Order.ID]; exists {
+						acceptedOrders[safeMsg.Order.ID] = true
+
+						scoreMap := make(map[string]int)
+						for _, elevator := range elevators {
+							scoreMap[elevator.ID] = calculateOrderScore(elevator, orders[safeMsg.Order.ID])
+						}
+
+						// find best (lowest) score
+						bestID := *id_ptr
+						for id, score := range scoreMap {
+							if score < scoreMap[bestID] {
+								bestID = id
+							}
+						}
+
+						fmt.Printf("[orderHandler]: elevator %v should take order %v (%v)\n", bestID, safeMsg.Order.ID, scoreMap)
+						if bestID != *id_ptr {
+							takeOrderMsg := msgs.TakeOrderMsg{SenderID: *id_ptr, RecieverID: bestID, Order: orders[safeMsg.Order.ID]}
+							otherTakeOrderCh <- takeOrderMsg
+						} else {
+							thisElevatorOrders[safeMsg.Order.ID] = true
+							thisElevatorOrdersUpdated = true // for debugging
+						}
+					} else {
+						fmt.Println("[orderHandler]: order didn't exist")
+					}
+				}
+			}
+
+			if thisElevatorOrdersUpdated {
+				thisElevatorOrdersUpdated = false
+				fmt.Printf("[orderhandler]: my orders")
+				for orderID, _ := range thisElevatorOrders {
+					fmt.Printf(" %v", orderID)
+				}
+				fmt.Printf("\n")
+			}
+		}
+
+//Security copy
+/*
 	calculateOrderScore := func(status msgs.ElevatorStatus, order msgs.Order) int {
 		floordiff := (int)(math.Abs((float64)(status.Floor - order.Floor)))
 		samedirection := status.Direction == order.Direction
@@ -213,7 +365,7 @@ func pseudoOrderHandlerAndFsm(thisElevatorHeartbeatCh chan<- msgs.Heartbeat, ele
 
 		return score
 	}
-
+*/
 	orders := make(map[int]msgs.Order)
 	acceptedOrders := make(map[int]bool)     // used as a set
 	thisElevatorOrders := make(map[int]bool) // used as a set
@@ -233,7 +385,7 @@ func pseudoOrderHandlerAndFsm(thisElevatorHeartbeatCh chan<- msgs.Heartbeat, ele
 
 	for {
 		select {
-		case elevators = <-elevatorsStatusCh:
+		case elevators = <-elevatorsStatusCh:	// debugging
 			fmt.Printf("[orderHandler]: elevators: ")
 			for _, elevator := range elevators {
 				fmt.Printf("%v ", elevator.ID)
@@ -250,55 +402,7 @@ func pseudoOrderHandlerAndFsm(thisElevatorHeartbeatCh chan<- msgs.Heartbeat, ele
 					thisElevatorOrders[order.ID] = true
 				}
 			}
-		//case msg := <-dbg_placeOrderCh:
-		//	if msg.RecieverID == *id_ptr {
-		//		order := msgs.PlaceOrderMsg{SenderID: *id_ptr, Order: msg.Order}
 
-		//		if _, exists := orders[msg.Order.ID]; exists {
-		//			fmt.Printf("[dbg_placeOrderCh]: Warning, order id %v already exists, new order ignored\n", order.Order.ID)
-		//			break
-		//		}
-
-		//		// error checking
-		//		if order.Order.Floor == 1 && order.Order.Direction == msgs.Down ||
-		//			order.Order.Floor == fsmMaxFloor && order.Order.Direction == msgs.Up {
-		//			fmt.Printf("[dbg_placeOrderCh]: Invalid order: %+v\n", order.Order)
-		//			break
-		//		}
-
-		//		orders[order.Order.ID] = order.Order
-		//		orderPlacedSendCh <- order
-		//	}
-		//case acceptOrder := <-dbg_acceptOrderCh:
-		//	if acceptOrder.RecieverID == *id_ptr {
-		//		if _, exists := orders[acceptOrder.Order.ID]; exists {
-		//			acceptedOrders[acceptOrder.Order.ID] = true
-
-		//			scoreMap := make(map[string]int)
-		//			for _, elevator := range elevators {
-		//				scoreMap[elevator.ID] = calculateOrderScore(elevator, orders[acceptOrder.Order.ID])
-		//			}
-
-		//			// find best (lowest) score
-		//			bestID := *id_ptr
-		//			for id, score := range scoreMap {
-		//				if score < scoreMap[bestID] {
-		//					bestID = id
-		//				}
-		//			}
-
-		//			fmt.Printf("[orderHandler]: elevator %v should take order %v (%v)\n", bestID, acceptOrder.Order.ID, scoreMap)
-		//			if bestID != *id_ptr {
-		//				takeOrderMsg := msgs.TakeOrderMsg{SenderID: *id_ptr, RecieverID: bestID, Order: orders[acceptOrder.Order.ID]}
-		//				otherTakeOrderCh <- takeOrderMsg
-		//			} else {
-		//				thisElevatorOrders[acceptOrder.Order.ID] = true
-		//				thisElevatorOrdersUpdated = true // for debugging
-		//			}
-		//		} else {
-		//			fmt.Println("[orderHandler]: order didn't exist")
-		//		}
-		//	}
 		case <-time.After(20 * time.Second):
 			fmt.Println("[fsm] status: ", fsmStatus)
 		case <-time.After(5 * time.Second):
