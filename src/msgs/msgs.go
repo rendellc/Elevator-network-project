@@ -1,8 +1,8 @@
 package msgs
 
 import (
-	"./elevio/elevio"
-	"./fsm"
+	"../elevio/elevio"
+	"../fsm"
 )
 
 type Direction elevio.MotorDirection

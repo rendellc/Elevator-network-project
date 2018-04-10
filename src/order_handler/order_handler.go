@@ -1,8 +1,8 @@
 package order_handler
 
 import (
-  "./elevio/elevio"
-  "./fsm"
+  "../elevio/elevio"
+  "../fsm"
   "fmt"
   "time"
 )

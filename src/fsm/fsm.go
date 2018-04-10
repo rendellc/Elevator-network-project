@@ -1,9 +1,10 @@
 package fsm
 
 import (
-  "./elevio/elevio"
+  "../elevio/elevio"
   "fmt"
   "time"
+  "../order_handler"
 )
 
 // FSM variables
@@ -20,9 +21,8 @@ const N_FLOORS = 4 //import
 const N_BUTTONS = 3
 // Door timer variables
 const door_open_time_threshold = 3.0  // time.Second
-var doorTimer = time.NewTimer(door_open_time_threshold*time.Second) * time.Second
+var doorTimer = time.NewTimer(door_open_time_threshold*time.Second) // * time.Second
 //
-const pollElevatorStatusPeriod =
 type Elevator struct {
     Floor int
     Dir elevio.MotorDirection
@@ -185,6 +185,7 @@ func FSM(addHallOrderCh <-chan OrderEvent, deleteHallOrderCh <-chan elevio.Butto
   buttonCh := make(chan elevio.ButtonEvent)
   floorSensorCh  := make(chan int)
   var elevator Elevator
+  prev := elevator
 
   //doorTimer.Stop()
   go elevio.PollFloorSensor(floorSensorCh)
@@ -201,7 +202,7 @@ func FSM(addHallOrderCh <-chan OrderEvent, deleteHallOrderCh <-chan elevio.Butto
         elevator.Orders[button_event.Floor][button_event.Button]=true
         elevio.SetButtonLamp(button_event.Button, button_event.Floor, true)
         fmt.Println("Cab order added and lights turned on")
-        fmt.Println("Estimated completion time: %f", estimated_completion_time(elevator,button_event))
+        fmt.Println("Estimated completion time: %f", order_handler.EstimatedCompletionTime(elevator,button_event))
         switch elevator.State{
         case IDLE:
           if elev_should_open_door(elevator) { //button_event.Floor == last_floor
@@ -226,7 +227,7 @@ func FSM(addHallOrderCh <-chan OrderEvent, deleteHallOrderCh <-chan elevio.Butto
         }
       }else{
         fmt.Println("Button Event: Hall order")
-        drv_hall_button_event <- button_event
+        placedHallOrderCh <- button_event
       }
 
     case hall_order := <- addHallOrderCh:
@@ -234,7 +235,7 @@ func FSM(addHallOrderCh <-chan OrderEvent, deleteHallOrderCh <-chan elevio.Butto
       elevator.Orders[hall_order.Floor][hall_order.Button]=true
       elevio.SetButtonLamp(hall_order.Button, hall_order.Floor, hall_order.TurnLightOn)
       fmt.Println("Hall order added and lights turned on if requested")
-      fmt.Println("Estimated completion time: %f", estimated_completion_time(elevator,elevio.ButtonEvent{hall_order.Floor, hall_order.Button}))
+      fmt.Println("Estimated completion time: %f", order_handler.EstimatedCompletionTime(elevator,elevio.ButtonEvent{hall_order.Floor, hall_order.Button}))
       switch elevator.State{
       case IDLE:
         if elev_should_open_door(elevator) { //button_event.Floor == last_floor
@@ -256,8 +257,9 @@ func FSM(addHallOrderCh <-chan OrderEvent, deleteHallOrderCh <-chan elevio.Butto
         }else{
           update_elevator_direction(&elevator)
         }
+      }
 
-    case hall_order := <- deleteHallOrderCh
+    case hall_order := <- deleteHallOrderCh:
       fmt.Println("Delete order: Not implemented")
 
     case elevator.Floor = <-floorSensorCh: //new floor reached -> door_open, idle, drive in other direction, continue drive
@@ -280,9 +282,10 @@ func FSM(addHallOrderCh <-chan OrderEvent, deleteHallOrderCh <-chan elevio.Butto
       }else{
         set_state_to_drive(&elevator)
       }
-
-    case <-time.After(pollElevatorStatusPeriod):
+    }
+    if prev != elevator{
       elevatorStatusCh <- elevator
+      prev = elevator
     }
   }
   fmt.Println("Lets end")
