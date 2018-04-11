@@ -212,7 +212,8 @@ func PseudoOrderHandlerAndFsm(id string, simAddr string, thisElevatorHeartbeatCh
 	fmt.Println("[fsm] started at: ", elevatorStatus)
 	//thisElevatorHeartbeatCh <- msgs.Heartbeat{SenderID: id, Status: fsmStatus, AcceptedOrders: []msgs.Order{}}
 
-	var elevators []msgs.Heartbeat
+	// Bookkeeping
+	elevators := make(map[string]msgs.Heartbeat)
 
 	for {
 		select {
@@ -230,16 +231,21 @@ func PseudoOrderHandlerAndFsm(id string, simAddr string, thisElevatorHeartbeatCh
 				AcceptedOrders: acceptedOrderList}
 
 		case allElevatorsHeartbeat := <-allElevatorsHeartbeatCh: // debugging. OK
-			fmt.Printf("[orderHandler]: number of elevators: %v\n", len(elevators))
 
 			var turnOnLights [N_FLOORS][N_BUTTONS]bool
 			for _, elevatorHeartbeat := range allElevatorsHeartbeat {
+				elevators[elevatorHeartbeat.SenderID] = elevatorHeartbeat
+
 				if elevatorHeartbeat.SenderID != id {
 					for _, acceptedOrder := range elevatorHeartbeat.AcceptedOrders {
 						turnOnLights[acceptedOrder.Floor][acceptedOrder.Type] = true
 					}
 				} // if else : Check if heartbeat of this elevator corresponds to the actual status
 			}
+
+			fmt.Printf("[lightSync]: turnOnLights %+v\n", turnOnLights)
+
+			fmt.Printf("[orderHandler]: number of elevators: %v\n", len(elevators))
 			turnOnLightsCh <- turnOnLights // can be all false
 
 		case downedElevators := <-downedElevatorsCh: // OK
@@ -252,9 +258,6 @@ func PseudoOrderHandlerAndFsm(id string, simAddr string, thisElevatorHeartbeatCh
 					addHallOrderCh <- fsm.OrderEvent{order.Floor, order.Type, false} //turn on/off lights? ???
 				}
 			}
-		case <-time.After(20 * time.Second): // debugging. OK
-			fmt.Println("[fsm] status: ", elevatorStatus)
-
 		case orderEventSlice := <-completedHallOrderCh: // OK
 			for _, completedOrder := range orderEventSlice {
 				for orderID, _ := range thisElevatorOrders {

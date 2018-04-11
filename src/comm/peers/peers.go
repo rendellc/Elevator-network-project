@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"reflect"
 	"time"
 )
 
@@ -76,8 +77,10 @@ func Receiver(port int, peerUpdateCh chan<- PeerUpdate) {
 		// Adding new connection
 		p.New = ""
 		if id != "" {
-			if _, idExists := lastSeen[id]; !idExists {
+			if prevObservation, idExists := lastSeen[id]; !idExists {
 				p.New = id
+				updated = true
+			} else if !reflect.DeepEqual(prevObservation.Heartbeat, lastSeen[id].Heartbeat) {
 				updated = true
 			}
 

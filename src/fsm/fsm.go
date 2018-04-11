@@ -179,8 +179,8 @@ func FSM(simAddr string, addHallOrderCh <-chan OrderEvent, deleteHallOrderCh <-c
 	go elevio.PollFloorSensor(floorSensorCh)
 	initializeState(&currElevator, floorSensorCh)
 	go elevio.PollButtons(buttonCh)
-	fmt.Println("[fsm]: ready")
 	elevatorStatusCh <- currElevator
+	fmt.Println("[fsm]: ready")
 	for {
 		select {
 		case buttonEvent := <-buttonCh:
@@ -272,7 +272,7 @@ func FSM(simAddr string, addHallOrderCh <-chan OrderEvent, deleteHallOrderCh <-c
 				setStateToDrive(&currElevator)
 			}
 
-		case turnOnLights:= <- turnOnLightsCh:
+		case turnOnLights := <-turnOnLightsCh:
 			for floor := 0; floor < N_FLOORS; floor++ {
 				for button := 0; button < N_BUTTONS; button++ {
 					if turnOnLights[floor][button] {
