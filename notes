@@ -2,3 +2,27 @@ Git:
   To pull submodules:
     First time: git submodule update --init --recursive
     Afterwards: git submodule update --recursive
+
+Build simulator:
+
+
+TODO:
+  synchronize lights
+  outsourcing
+  automatic discovery of elevators (maybe make port be determined from id)
+  simulate package lost
+  simulate node temporarily out
+  See failure mode 6
+  split up fsm and orderhandler in PseudoOrderHandlerAndFsm
+
+Tests:
+
+  Failure modes:
+    1.- Some packages are lost
+    2.- Elevator/Network for one module down
+    3.- Elevator/Network for one module down temporarily and then comes back
+    4.- Does the network module crash when ethernet is disconnected
+    5.- Turning off elevator power, disconnecting motor wires
+    6.- Disregarded orders:
+          If placed order is disregarded more than X times after T seconds
+          (no acks received), then the elevator takes this order.
