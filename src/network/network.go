@@ -228,9 +228,8 @@ func PseudoOrderHandlerAndFsm(id string, simAddr string, thisElevatorHeartbeatCh
 			fmt.Printf("[orderHandler]: number of elevators: %v\n", len(elevators))
 
 			for _, elevator := range elevators {
-				
-			}
 
+			}
 
 		case downedElevators := <-downedElevatorsCh: // OK
 			for _, lastHeartbeat := range downedElevators {
