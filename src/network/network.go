@@ -16,6 +16,8 @@ var rnd = rand.New(rand.NewSource(time.Now().UnixNano()))
 const port = 20010
 const timeout = 1 * time.Second
 const giveupAckwaitTimeout = 5 * time.Second
+const N_FLOORS = 4 //import
+const N_BUTTONS = 3
 
 func Launch(id string,
 	thisElevatorStatusCh <-chan msgs.Heartbeat, allElevatorsHeartbeatCh chan<- []msgs.Heartbeat, downedElevatorsCh chan<- []msgs.Heartbeat,
@@ -189,14 +191,17 @@ func Launch(id string,
 func PseudoOrderHandlerAndFsm(id string, simAddr string, thisElevatorHeartbeatCh chan<- msgs.Heartbeat,
 	allElevatorsHeartbeatCh <-chan []msgs.Heartbeat, downedElevatorsCh <-chan []msgs.Heartbeat,
 	placedOrderCh chan<- msgs.Order, thisTakeOrderCh <-chan msgs.TakeOrderMsg, otherTakeOrderCh chan<- msgs.TakeOrderMsg,
-	safeOrderCh <-chan msgs.SafeOrderMsg, completedOrderCh chan<- msgs.Order) {
+	safeOrderCh <-chan msgs.SafeOrderMsg, completedOrderCh chan<- msgs.Order){//,turnOnLightsCh chan<- [N_FLOORS][N_BUTTONS]bool) {
 
 	addHallOrderCh := make(chan fsm.OrderEvent)
 	deleteHallOrderCh := make(chan fsm.OrderEvent)
 	placedHallOrderCh := make(chan fsm.OrderEvent)
 	completedHallOrderCh := make(chan []fsm.OrderEvent)
 	elevatorStatusCh := make(chan fsm.Elevator)
-	go fsm.FSM(simAddr, addHallOrderCh, deleteHallOrderCh, placedHallOrderCh, completedHallOrderCh, elevatorStatusCh)
+	turnOnLightsCh := make(chan [N_FLOORS][N_BUTTONS]bool)
+	go fsm.FSM(simAddr, addHallOrderCh, deleteHallOrderCh,
+		placedHallOrderCh, completedHallOrderCh,
+		elevatorStatusCh, turnOnLightsCh)
 	var elevatorStatus fsm.Elevator
 
 	orders := make(map[int]msgs.Order)
@@ -224,10 +229,18 @@ func PseudoOrderHandlerAndFsm(id string, simAddr string, thisElevatorHeartbeatCh
 				Status:         elevatorStatus,
 				AcceptedOrders: acceptedOrderList}
 
-		case elevators = <-allElevatorsHeartbeatCh: // debugging. OK
+		case allElevatorsHeartbeat := <-allElevatorsHeartbeatCh: // debugging. OK
 			fmt.Printf("[orderHandler]: number of elevators: %v\n", len(elevators))
 
-			for _, _ = range elevators {
+			var turnOnLights [N_FLOORS][N_BUTTONS]bool
+			for _, elevatorHeartbeat := range allElevatorsHeartbeat {
+				if elevatorHeartbeat.SenderID != id {
+					for _, acceptedOrder := range elevatorHeartbeat.AcceptedOrders {
+						turnOnLights[acceptedOrder.Floor][acceptedOrder.Type] = true
+					}
+				} // if else : Check if heartbeat of this elevator corresponds to the actual status
+			}
+			turnOnLightsCh <- turnOnLights // can be all false
 
 			}
 
