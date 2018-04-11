@@ -122,7 +122,7 @@ func Launch(id string,
 			}
 
 			if len(peerUpdate.New) > 0 {
-				//fmt.Println("[peerUpdateCh]: New: ", peerUpdate.New)
+				fmt.Println("[peerUpdateCh]: New: ", peerUpdate.New)
 			}
 
 			allElevatorsHeartbeatCh <- peerUpdate.Peers
@@ -238,6 +238,7 @@ func PseudoOrderHandlerAndFsm(id string, simAddr string, thisElevatorHeartbeatCh
 			}
 		case <-time.After(20 * time.Second): // debugging. OK
 			fmt.Println("[fsm] status: ", elevatorStatus)
+
 		case orderEventSlice := <-completedHallOrderCh: // OK
 			for _, completedOrder := range orderEventSlice {
 				for orderID, _ := range thisElevatorOrders {

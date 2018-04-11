@@ -54,7 +54,7 @@ func Transmitter(port int, transmitEnable <-chan bool, statusCh <-chan msgs.Hear
 	}
 }
 
-func Receiver(port int, peerUpdateCh chan<- PeerUpdate /*, statusCh chan<- msgs.Heartbeat*/) {
+func Receiver(port int, peerUpdateCh chan<- PeerUpdate) {
 
 	var buf [1024]byte
 	var p PeerUpdate
@@ -69,7 +69,7 @@ func Receiver(port int, peerUpdateCh chan<- PeerUpdate /*, statusCh chan<- msgs.
 		n, _, _ := conn.ReadFrom(buf[0:])
 		data := buf[:n]
 		var heartbeat msgs.Heartbeat
-		json.Unmarshal(data, &heartbeat)
+		json.Unmarshal(data, &heartbeat) //TODO: error checking
 
 		id := heartbeat.SenderID
 
