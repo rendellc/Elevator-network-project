@@ -2,7 +2,7 @@ package fsm
 
 import (
 	"../elevio"
-	//"fmt"
+	"fmt"
 	"time"
 	//"../order_handler"
 )
@@ -292,7 +292,7 @@ func FSM(simAddr string, addHallOrderCh <-chan OrderEvent, deleteHallOrderCh <-c
 			}
 			if len(completedHallOrderSlice) > 0 {
 				completedHallOrderCh <- completedHallOrderSlice
-				}
+			}
 			elevatorStatusCh <- currElevator
 			prevElevator = currElevator
 		}

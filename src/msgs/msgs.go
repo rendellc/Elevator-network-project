@@ -44,3 +44,25 @@ func (h HeartbeatSlice) Less(i, j int) bool {
 func (h HeartbeatSlice) Swap(i, j int) {
 	h[i], h[j] = h[j], h[i]
 }
+
+func Equal(a, b Heartbeat) bool {
+	if a.SenderID != b.SenderID {
+		return false
+	}
+	if a.Status != b.Status {
+		return false
+	}
+	if len(a.AcceptedOrders) != len(b.AcceptedOrders) {
+		return false
+	}
+
+	for _, val_a := range a.AcceptedOrders {
+		for _, val_b := range b.AcceptedOrders {
+			if val_a == val_b {
+				break
+			}
+			return false
+		}
+	}
+	return true
+}

@@ -32,16 +32,16 @@ func Transmitter(port int, transmitEnable <-chan bool, statusCh <-chan msgs.Hear
 
 	enable := true
 	statusRecieved := false
-	var recivedStatus msgs.Heartbeat
+	var recievedStatus msgs.Heartbeat
 	for {
 		select {
 		case enable = <-transmitEnable:
-		case recivedStatus = <-statusCh:
+		case recievedStatus = <-statusCh:
 			statusRecieved = true
 		case <-time.After(interval):
 		}
 		if enable && statusRecieved {
-			serialized, err := json.Marshal(recivedStatus)
+			serialized, err := json.Marshal(recievedStatus)
 			if err != nil {
 				log.Println("[peer]", err)
 				continue
@@ -51,6 +51,7 @@ func Transmitter(port int, transmitEnable <-chan bool, statusCh <-chan msgs.Hear
 				log.Println("[peer]", err)
 				continue
 			}
+
 		}
 	}
 }
@@ -77,10 +78,11 @@ func Receiver(port int, peerUpdateCh chan<- PeerUpdate) {
 		// Adding new connection
 		p.New = ""
 		if id != "" {
-			if prevObservation, idExists := lastSeen[id]; !idExists {
+			if _, idExists := lastSeen[id]; !idExists {
+				//fmt.Printf("[peers]: elevator %v discovered\n", id)
 				p.New = id
 				updated = true
-			} else if !reflect.DeepEqual(prevObservation.Heartbeat, lastSeen[id].Heartbeat) {
+			} else if !reflect.DeepEqual(heartbeat, lastSeen[id].Heartbeat) {
 				updated = true
 			}
 
