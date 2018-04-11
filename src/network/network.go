@@ -242,6 +242,7 @@ func PseudoOrderHandlerAndFsm(id string, simAddr string, thisElevatorHeartbeatCh
 			}
 			turnOnLightsCh <- turnOnLights // can be all false
 
+			}
 
 		case downedElevators := <-downedElevatorsCh: // OK
 			for _, lastHeartbeat := range downedElevators {
@@ -255,6 +256,7 @@ func PseudoOrderHandlerAndFsm(id string, simAddr string, thisElevatorHeartbeatCh
 			}
 		case <-time.After(20 * time.Second): // debugging. OK
 			fmt.Println("[fsm] status: ", elevatorStatus)
+
 		case orderEventSlice := <-completedHallOrderCh: // OK
 			for _, completedOrder := range orderEventSlice {
 				for orderID, _ := range thisElevatorOrders {
