@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"reflect"
 	"time"
 )
 
@@ -60,13 +61,13 @@ func Receiver(port int, peerUpdateCh chan<- PeerUpdate) {
 	var p PeerUpdate
 	lastSeen := make(map[string]observation)
 
-	conn := conn.DialBroadcastUDP(port)
+	conn := conn.DialBroadcastUDP(port) // TODO: error checking
 
 	for {
 		updated := false
 
 		conn.SetReadDeadline(time.Now().Add(interval))
-		n, _, _ := conn.ReadFrom(buf[0:])
+		n, _, _ := conn.ReadFrom(buf[0:]) //TODO: error checking
 		data := buf[:n]
 		var heartbeat msgs.Heartbeat
 		json.Unmarshal(data, &heartbeat) //TODO: error checking
@@ -76,8 +77,10 @@ func Receiver(port int, peerUpdateCh chan<- PeerUpdate) {
 		// Adding new connection
 		p.New = ""
 		if id != "" {
-			if _, idExists := lastSeen[id]; !idExists {
+			if prevObservation, idExists := lastSeen[id]; !idExists {
 				p.New = id
+				updated = true
+			} else if !reflect.DeepEqual(prevObservation.Heartbeat, lastSeen[id].Heartbeat) {
 				updated = true
 			}
 

@@ -8,8 +8,8 @@ Build simulator:
 
 TODO:
   synchronize lights
-  outsourcing
-  automatic discovery of elevators (maybe make port be determined from id)
+ +outsourcing 
+  make port determinable from id and automatic discovery of elevators
   simulate package lost
   simulate node temporarily out
   See failure mode 6
