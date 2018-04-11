@@ -60,13 +60,13 @@ func Receiver(port int, peerUpdateCh chan<- PeerUpdate) {
 	var p PeerUpdate
 	lastSeen := make(map[string]observation)
 
-	conn := conn.DialBroadcastUDP(port)
+	conn := conn.DialBroadcastUDP(port) // TODO: error checking
 
 	for {
 		updated := false
 
 		conn.SetReadDeadline(time.Now().Add(interval))
-		n, _, _ := conn.ReadFrom(buf[0:])
+		n, _, _ := conn.ReadFrom(buf[0:]) //TODO: error checking
 		data := buf[:n]
 		var heartbeat msgs.Heartbeat
 		json.Unmarshal(data, &heartbeat) //TODO: error checking
