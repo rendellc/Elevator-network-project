@@ -12,6 +12,8 @@ var id_ptr = flag.String("id", "noid", "ID for node")
 var simAddr_ptr = flag.String("addr", "noid", "Port for node")
 
 var rnd = rand.New(rand.NewSource(time.Now().UnixNano()))
+const N_FLOORS = 4 //import
+const N_BUTTONS = 3
 
 func main() {
 	flag.Parse()
@@ -25,6 +27,7 @@ func main() {
 	otherTakeOrderCh := make(chan msgs.TakeOrderMsg)
 	safeOrderCh := make(chan msgs.SafeOrderMsg)
 	completedOrderCh := make(chan msgs.Order)
+	//turnOnLightsCh := make(chan [N_FLOORS][N_BUTTONS]bool)
 
 	go network.Launch(*id_ptr,
 		thisElevatorStatusCh, allElevatorsHeartbeatCh, downedElevatorsCh,
@@ -34,7 +37,7 @@ func main() {
 	go network.PseudoOrderHandlerAndFsm(*id_ptr, *simAddr_ptr,
 		thisElevatorStatusCh, allElevatorsHeartbeatCh, downedElevatorsCh,
 		placedOrderCh, thisTakeOrderCh, otherTakeOrderCh,
-		safeOrderCh, completedOrderCh)
+		safeOrderCh, completedOrderCh)//, turnOnLightsCh)
 
 	for {
 		select {}
