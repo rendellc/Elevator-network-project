@@ -71,7 +71,7 @@ func main(){
 
   //fmt.Println("Order controller kicks in")
   //<-time.After(3 * time.Second)
-  go fsm.FSM(addHallOrderCh, deleteHallOrderCh, placedHallOrderCh, completedHallOrderCh, elevatorStatusCh)
+  go fsm.FSM("localhost:15657",addHallOrderCh, deleteHallOrderCh, placedHallOrderCh, completedHallOrderCh, elevatorStatusCh)
   go simplified_order_controller(addHallOrderCh, deleteHallOrderCh, placedHallOrderCh, completedHallOrderCh, elevatorStatusCh)
 
   for{
