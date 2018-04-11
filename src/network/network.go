@@ -242,8 +242,6 @@ func PseudoOrderHandlerAndFsm(id string, simAddr string, thisElevatorHeartbeatCh
 			}
 			turnOnLightsCh <- turnOnLights // can be all false
 
-			}
-
 		case downedElevators := <-downedElevatorsCh: // OK
 			for _, lastHeartbeat := range downedElevators {
 				// elevator is down
