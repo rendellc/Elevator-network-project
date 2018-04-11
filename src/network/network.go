@@ -54,7 +54,7 @@ func Launch(thisID string,
 
 	// Wait until all modules are initialized
 	wg.Done()
-	fmt.Println("Network waiting")
+	fmt.Println("Network initialized")
 	wg.Wait()
 	for {
 		select {
@@ -123,8 +123,10 @@ func Launch(thisID string,
 			ongoingOrders[msg.Order.ID] = time.Now()
 		case peerUpdate := <-peerUpdateCh:
 			if len(peerUpdate.Lost) > 0 {
+
 				var downedElevators []msgs.Heartbeat
 				for _, lastHeartbeat := range peerUpdate.Lost {
+					fmt.Printf("[peerUpdateCh]: lost %v\n", lastHeartbeat.SenderID)
 					downedElevators = append(downedElevators, lastHeartbeat)
 				}
 
@@ -135,9 +137,10 @@ func Launch(thisID string,
 				fmt.Println("[peerUpdateCh]: New: ", peerUpdate.New)
 			}
 
-			fmt.Println("[peerUpdateCh]: writing to allElevatorsHeartbeatCh")
+			// TODO: this sometimes deadlocks with thisElevatorHeartbeatCh, probably due to some circular dependecy
+			//fmt.Println("[network]: writing to allElevatorsHeartbeatCh")
 			allElevatorsHeartbeatCh <- peerUpdate.Peers
-			fmt.Println("[peerUpdateCh]: done")
+			//fmt.Println("[network]: allElevatorsHeartbeatCh done")
 		case order := <-completedOrderCh:
 			fmt.Println("[orderCompletedCh]: ", order)
 
@@ -227,7 +230,7 @@ func PseudoOrderHandlerAndFsm(thisID string, simAddr string, thisElevatorHeartbe
 
 	// Wait until all modules are initialized
 	wg.Done()
-	fmt.Println("PseudoOrderHandler waiting")
+	fmt.Println("PseudoOrderHandler initialized")
 	wg.Wait()
 	for {
 		select {
@@ -245,9 +248,10 @@ func PseudoOrderHandlerAndFsm(thisID string, simAddr string, thisElevatorHeartbe
 				Status:         elevatorStatus,
 				AcceptedOrders: acceptedOrderList}
 
-			//fmt.Printf("[network]: new heartbeat %+v\n", heartbeat)
-
+			//TODO: deadlock zone, be careful!
+			//fmt.Println("[network]: writing to thisElevatorHeartbeatCh")
 			thisElevatorHeartbeatCh <- heartbeat
+			//fmt.Println("[network]: thisElevatorHeartbeatCh done")
 
 		case allElevatorsHeartbeat := <-allElevatorsHeartbeatCh: // debugging. OK
 
@@ -264,9 +268,13 @@ func PseudoOrderHandlerAndFsm(thisID string, simAddr string, thisElevatorHeartbe
 				} // if else : Check if heartbeat of this elevator corresponds to the actual status
 			}
 
-			//fmt.Printf("[lightSync]: turnOnLights %+v\n", turnOnLights)
+			// debug
+			var elevatorIDList []string
+			for id, _ := range elevators {
+				elevatorIDList = append(elevatorIDList, id)
+			}
 
-			fmt.Printf("[orderHandler]: number of elevators: %v\n", len(elevators))
+			fmt.Printf("[orderHandler]: elevators: %v\n", elevatorIDList)
 			turnOnLightsCh <- turnOnLights // can be all false
 		case downedElevators := <-downedElevatorsCh: // OK
 			for _, lastHeartbeat := range downedElevators {
@@ -277,6 +285,8 @@ func PseudoOrderHandlerAndFsm(thisID string, simAddr string, thisElevatorHeartbe
 					orders[order.ID] = order
 					addHallOrderCh <- fsm.OrderEvent{order.Floor, order.Type, false} //turn on/off lights? ???
 				}
+
+				delete(elevators, lastHeartbeat.SenderID)
 			}
 		case orderEventSlice := <-completedHallOrderCh: // OK
 			for _, completedOrder := range orderEventSlice {

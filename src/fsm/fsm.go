@@ -168,9 +168,9 @@ func FSM(simAddr string, addHallOrderCh <-chan OrderEvent, deleteHallOrderCh <-c
 	placedHallOrderCh chan<- OrderEvent, completedHallOrderCh chan<- []OrderEvent,
 	elevatorStatusCh chan<- Elevator, turnOnLightsCh <-chan [N_FLOORS][N_BUTTONS]bool, wg *sync.WaitGroup) {
 
-	fmt.Println("[fsm]: starting")
+	//fmt.Println("[fsm]: starting")
 	elevio.Init(simAddr, N_FLOORS)
-	fmt.Println("Hardware initialized")
+	//fmt.Println("Hardware initialized")
 	buttonCh := make(chan elevio.ButtonEvent)
 	floorSensorCh := make(chan int)
 	var currElevator Elevator
@@ -183,10 +183,10 @@ func FSM(simAddr string, addHallOrderCh <-chan OrderEvent, deleteHallOrderCh <-c
 
 	// Wait until all modules are initialized
 	wg.Done()
-	fmt.Println("FSM waiting")
+	fmt.Println("FSM initialized")
 	wg.Wait()
 
-	elevatorStatusCh <- currElevator
+	//elevatorStatusCh <- currElevator
 	for {
 		select {
 		case buttonEvent := <-buttonCh:
@@ -286,6 +286,7 @@ func FSM(simAddr string, addHallOrderCh <-chan OrderEvent, deleteHallOrderCh <-c
 					}
 				}
 			}
+		case <-time.After(1 * time.Second):
 		}
 		if prevElevator != currElevator {
 			var completedHallOrderSlice []OrderEvent
