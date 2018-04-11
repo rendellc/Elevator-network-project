@@ -54,7 +54,7 @@ func Launch(id string,
 		case msg := <-placedOrderRecvCh:
 			// store order
 			if _, exists := ordersRecieved[msg.Order.ID]; exists {
-				fmt.Printf("[placedOrderRecvCh]: Warning, order id %v already exists, new order ignored", msg.Order.ID)
+				fmt.Printf("[placedOrderRecvCh]: Warning, order id %v already exists, new order ignored\n", msg.Order.ID)
 				break
 			}
 			ordersRecieved[msg.Order.ID] = msg.Order
@@ -226,6 +226,12 @@ func PseudoOrderHandlerAndFsm(id string, simAddr string, thisElevatorHeartbeatCh
 
 		case elevators = <-allElevatorsHeartbeatCh: // debugging. OK
 			fmt.Printf("[orderHandler]: number of elevators: %v\n", len(elevators))
+
+			for _, elevator := range elevators {
+				
+			}
+
+
 		case downedElevators := <-downedElevatorsCh: // OK
 			for _, lastHeartbeat := range downedElevators {
 				// elevator is down

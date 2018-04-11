@@ -280,7 +280,9 @@ func FSM(simAddr string, addHallOrderCh <-chan OrderEvent, deleteHallOrderCh <-c
 					}
 				}
 			}
-			completedHallOrderCh <- completedHallOrderSlice
+			if len(completedHallOrderSlice) > 0 {
+				completedHallOrderCh <- completedHallOrderSlice
+				}
 			elevatorStatusCh <- elevator
 			prev = elevator
 		}
