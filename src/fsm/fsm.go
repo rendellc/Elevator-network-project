@@ -3,6 +3,7 @@ package fsm
 import (
 	"../elevio"
 	"fmt"
+	"sync"
 	"time"
 	//"../order_handler"
 )
@@ -165,11 +166,11 @@ func clearOrdersAtFloor(elev *Elevator, simulationMode bool) {
 
 func FSM(simAddr string, addHallOrderCh <-chan OrderEvent, deleteHallOrderCh <-chan OrderEvent,
 	placedHallOrderCh chan<- OrderEvent, completedHallOrderCh chan<- []OrderEvent,
-	elevatorStatusCh chan<- Elevator, turnOnLightsCh <-chan [N_FLOORS][N_BUTTONS]bool) {
+	elevatorStatusCh chan<- Elevator, turnOnLightsCh <-chan [N_FLOORS][N_BUTTONS]bool, wg *sync.WaitGroup) {
 
-	//fmt.Println("[fsm]: starting")
+	fmt.Println("[fsm]: starting")
 	elevio.Init(simAddr, N_FLOORS)
-	////fmt.Println("Hardware initialized")
+	fmt.Println("Hardware initialized")
 	buttonCh := make(chan elevio.ButtonEvent)
 	floorSensorCh := make(chan int)
 	var currElevator Elevator
@@ -179,8 +180,13 @@ func FSM(simAddr string, addHallOrderCh <-chan OrderEvent, deleteHallOrderCh <-c
 	go elevio.PollFloorSensor(floorSensorCh)
 	initializeState(&currElevator, floorSensorCh)
 	go elevio.PollButtons(buttonCh)
+
+	// Wait until all modules are initialized
+	wg.Done()
+	fmt.Println("FSM waiting")
+	wg.Wait()
+
 	elevatorStatusCh <- currElevator
-	fmt.Println("[fsm]: ready")
 	for {
 		select {
 		case buttonEvent := <-buttonCh:

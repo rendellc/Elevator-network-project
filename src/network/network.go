@@ -7,6 +7,7 @@ import (
 	"../msgs"
 	"fmt"
 	"math/rand"
+	"sync"
 	"time"
 )
 
@@ -22,7 +23,7 @@ const N_BUTTONS = 3
 func Launch(thisID string,
 	thisElevatorHeartbeatCh <-chan msgs.Heartbeat, allElevatorsHeartbeatCh chan<- []msgs.Heartbeat, downedElevatorsCh chan<- []msgs.Heartbeat,
 	placedOrderCh <-chan msgs.Order, thisTakeOrderCh chan<- msgs.TakeOrderMsg, otherTakeOrderCh <-chan msgs.TakeOrderMsg,
-	safeOrderCh chan<- msgs.SafeOrderMsg, completedOrderCh <-chan msgs.Order) {
+	safeOrderCh chan<- msgs.SafeOrderMsg, completedOrderCh <-chan msgs.Order, wg *sync.WaitGroup) {
 
 	placedOrderSendCh := make(chan msgs.PlacedOrderMsg)
 	placedOrderAckSendCh := make(chan msgs.PlacedOrderAck)
@@ -51,6 +52,10 @@ func Launch(thisID string,
 	takeUnackedOrders := make(map[int]time.Time)  // time is time when added
 	ongoingOrders := make(map[int]time.Time)      // time is time when added
 
+	// Wait until all modules are initialized
+	wg.Done()
+	fmt.Println("Network waiting")
+	wg.Wait()
 	for {
 		select {
 		case msg := <-placedOrderRecvCh:
@@ -130,9 +135,9 @@ func Launch(thisID string,
 				fmt.Println("[peerUpdateCh]: New: ", peerUpdate.New)
 			}
 
-			//fmt.Printf("[peers]: All elevators %+v\n", peerUpdate.Peers)
-
+			fmt.Println("[peerUpdateCh]: writing to allElevatorsHeartbeatCh")
 			allElevatorsHeartbeatCh <- peerUpdate.Peers
+			fmt.Println("[peerUpdateCh]: done")
 		case order := <-completedOrderCh:
 			fmt.Println("[orderCompletedCh]: ", order)
 
@@ -196,7 +201,7 @@ func Launch(thisID string,
 func PseudoOrderHandlerAndFsm(thisID string, simAddr string, thisElevatorHeartbeatCh chan<- msgs.Heartbeat,
 	allElevatorsHeartbeatCh <-chan []msgs.Heartbeat, downedElevatorsCh <-chan []msgs.Heartbeat,
 	placedOrderCh chan<- msgs.Order, thisTakeOrderCh <-chan msgs.TakeOrderMsg, otherTakeOrderCh chan<- msgs.TakeOrderMsg,
-	safeOrderCh <-chan msgs.SafeOrderMsg, completedOrderCh chan<- msgs.Order) { //,turnOnLightsCh chan<- [N_FLOORS][N_BUTTONS]bool) {
+	safeOrderCh <-chan msgs.SafeOrderMsg, completedOrderCh chan<- msgs.Order, wg *sync.WaitGroup) { //,turnOnLightsCh chan<- [N_FLOORS][N_BUTTONS]bool) {
 
 	addHallOrderCh := make(chan fsm.OrderEvent)
 	deleteHallOrderCh := make(chan fsm.OrderEvent)
@@ -204,9 +209,11 @@ func PseudoOrderHandlerAndFsm(thisID string, simAddr string, thisElevatorHeartbe
 	completedHallOrderCh := make(chan []fsm.OrderEvent)
 	elevatorStatusCh := make(chan fsm.Elevator)
 	turnOnLightsCh := make(chan [N_FLOORS][N_BUTTONS]bool)
+
 	go fsm.FSM(simAddr, addHallOrderCh, deleteHallOrderCh,
 		placedHallOrderCh, completedHallOrderCh,
-		elevatorStatusCh, turnOnLightsCh)
+		elevatorStatusCh, turnOnLightsCh, wg)
+
 	var elevatorStatus fsm.Elevator
 
 	orders := make(map[int]msgs.Order)
@@ -214,12 +221,14 @@ func PseudoOrderHandlerAndFsm(thisID string, simAddr string, thisElevatorHeartbe
 	thisElevatorOrders := make(map[int]bool) // set of order this elevator will take
 
 	thisElevatorOrdersUpdated := false
-	fmt.Println("[fsm] started at: ", elevatorStatus)
-	//thisElevatorHeartbeatCh <- msgs.Heartbeat{SenderID: thisID, Status: fsmStatus, AcceptedOrders: []msgs.Order{}}
 
 	// Bookkeeping
 	elevators := make(map[string]msgs.Heartbeat)
 
+	// Wait until all modules are initialized
+	wg.Done()
+	fmt.Println("PseudoOrderHandler waiting")
+	wg.Wait()
 	for {
 		select {
 		case elevatorStatus = <-elevatorStatusCh: // Here

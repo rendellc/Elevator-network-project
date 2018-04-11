@@ -5,6 +5,7 @@ import (
 	"./network"
 	"flag"
 	"math/rand"
+	"sync"
 	"time"
 )
 
@@ -13,11 +14,16 @@ var simAddr_ptr = flag.String("addr", "noid", "Port for node")
 
 var rnd = rand.New(rand.NewSource(time.Now().UnixNano()))
 
+var wg sync.WaitGroup
+
 const N_FLOORS = 4 //import
 const N_BUTTONS = 3
 
 func main() {
 	flag.Parse()
+
+	// Three modules in wait group
+	wg.Add(3)
 
 	// OrderHandler channels
 	thisElevatorHeartbeatCh := make(chan msgs.Heartbeat)
@@ -33,12 +39,12 @@ func main() {
 	go network.Launch(*id_ptr,
 		thisElevatorHeartbeatCh, allElevatorsHeartbeatCh, downedElevatorsCh,
 		placedOrderCh, thisTakeOrderCh, otherTakeOrderCh,
-		safeOrderCh, completedOrderCh)
+		safeOrderCh, completedOrderCh, &wg)
 
 	go network.PseudoOrderHandlerAndFsm(*id_ptr, *simAddr_ptr,
 		thisElevatorHeartbeatCh, allElevatorsHeartbeatCh, downedElevatorsCh,
 		placedOrderCh, thisTakeOrderCh, otherTakeOrderCh,
-		safeOrderCh, completedOrderCh) //, turnOnLightsCh)
+		safeOrderCh, completedOrderCh, &wg) //, turnOnLightsCh)
 
 	for {
 		select {}
