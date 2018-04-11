@@ -191,7 +191,7 @@ func Launch(id string,
 func PseudoOrderHandlerAndFsm(id string, simAddr string, thisElevatorHeartbeatCh chan<- msgs.Heartbeat,
 	allElevatorsHeartbeatCh <-chan []msgs.Heartbeat, downedElevatorsCh <-chan []msgs.Heartbeat,
 	placedOrderCh chan<- msgs.Order, thisTakeOrderCh <-chan msgs.TakeOrderMsg, otherTakeOrderCh chan<- msgs.TakeOrderMsg,
-	safeOrderCh <-chan msgs.SafeOrderMsg, completedOrderCh chan<- msgs.Order){//,turnOnLightsCh chan<- [N_FLOORS][N_BUTTONS]bool) {
+	safeOrderCh <-chan msgs.SafeOrderMsg, completedOrderCh chan<- msgs.Order) { //,turnOnLightsCh chan<- [N_FLOORS][N_BUTTONS]bool) {
 
 	addHallOrderCh := make(chan fsm.OrderEvent)
 	deleteHallOrderCh := make(chan fsm.OrderEvent)
@@ -241,8 +241,6 @@ func PseudoOrderHandlerAndFsm(id string, simAddr string, thisElevatorHeartbeatCh
 				} // if else : Check if heartbeat of this elevator corresponds to the actual status
 			}
 			turnOnLightsCh <- turnOnLights // can be all false
-
-			}
 
 		case downedElevators := <-downedElevatorsCh: // OK
 			for _, lastHeartbeat := range downedElevators {
