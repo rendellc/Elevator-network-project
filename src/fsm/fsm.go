@@ -24,9 +24,9 @@ type Elevator struct {
 }
 
 type OrderEvent struct {
-	Floor       int
-	Button      elevio.ButtonType
-	TurnLightOn bool
+	Floor   int
+	Button  elevio.ButtonType
+	LightOn bool
 }
 
 const N_FLOORS = 4 //import
@@ -183,8 +183,9 @@ func FSM(simAddr string, addHallOrderCh <-chan OrderEvent, deleteHallOrderCh <-c
 
 	// Wait until all modules are initialized
 	wg.Done()
-	fmt.Println("FSM initialized")
+	fmt.Println("[fsm]: initialized")
 	wg.Wait()
+	fmt.Println("[fsm]: starting")
 
 	//elevatorStatusCh <- currElevator
 	for {
@@ -219,7 +220,7 @@ func FSM(simAddr string, addHallOrderCh <-chan OrderEvent, deleteHallOrderCh <-c
 
 		case hallOrder := <-addHallOrderCh:
 			currElevator.Orders[hallOrder.Floor][hallOrder.Button] = true
-			elevio.SetButtonLamp(hallOrder.Button, hallOrder.Floor, hallOrder.TurnLightOn)
+			elevio.SetButtonLamp(hallOrder.Button, hallOrder.Floor, hallOrder.LightOn)
 			//fmt.Println("[fsm]: Hall order added and lights turned on if requested")
 			//fmt.Println("[fsm]: Estimated completion time: %f", EstimatedCompletionTime(currElevator, hallOrder))
 			switch currElevator.State {
@@ -281,12 +282,11 @@ func FSM(simAddr string, addHallOrderCh <-chan OrderEvent, deleteHallOrderCh <-c
 		case turnOnLights := <-turnOnLightsCh:
 			for floor := 0; floor < N_FLOORS; floor++ {
 				for button := 0; button < N_BUTTONS; button++ {
-					if turnOnLights[floor][button] {
-						elevio.SetButtonLamp(elevio.ButtonType(button), floor, true)
-					}
+					elevio.SetButtonLamp(elevio.ButtonType(button), floor, turnOnLights[floor][button])
 				}
 			}
 		case <-time.After(1 * time.Second):
+			//fmt.Println("[fsm]: running")
 		}
 		if prevElevator != currElevator {
 			var completedHallOrderSlice []OrderEvent

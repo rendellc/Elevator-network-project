@@ -14,7 +14,7 @@ import (
 var rnd = rand.New(rand.NewSource(time.Now().UnixNano()))
 
 //const server_ip = "129.241.187.38"
-const port = 20010
+const commonPort = 20010
 const timeout = 1 * time.Second
 const giveupAckwaitTimeout = 5 * time.Second
 const N_FLOORS = 4 //import
@@ -22,7 +22,7 @@ const N_BUTTONS = 3
 
 func Launch(thisID string,
 	thisElevatorHeartbeatCh <-chan msgs.Heartbeat, allElevatorsHeartbeatCh chan<- []msgs.Heartbeat, downedElevatorsCh chan<- []msgs.Heartbeat,
-	placedOrderCh <-chan msgs.Order, thisTakeOrderCh chan<- msgs.TakeOrderMsg, otherTakeOrderCh <-chan msgs.TakeOrderMsg,
+	placedOrderCh <-chan msgs.Order, thisTakeOrderCh chan<- msgs.TakeOrderMsg, broadcastTakeOrderCh <-chan msgs.TakeOrderMsg,
 	safeOrderCh chan<- msgs.SafeOrderMsg, completedOrderCh <-chan msgs.Order, wg *sync.WaitGroup) {
 
 	placedOrderSendCh := make(chan msgs.PlacedOrderMsg)
@@ -30,21 +30,21 @@ func Launch(thisID string,
 	takeOrderAckSendCh := make(chan msgs.TakeOrderAck)
 	takeOrderSendCh := make(chan msgs.TakeOrderMsg)
 	completeOrderSendCh := make(chan msgs.CompleteOrderMsg)
-	go bcast.Transmitter(port, placedOrderSendCh, placedOrderAckSendCh, takeOrderAckSendCh, takeOrderSendCh, completeOrderSendCh)
+	go bcast.Transmitter(commonPort, placedOrderSendCh, placedOrderAckSendCh, takeOrderAckSendCh, takeOrderSendCh, completeOrderSendCh)
 
 	placedOrderRecvCh := make(chan msgs.PlacedOrderMsg)
 	placedOrderAckRecvCh := make(chan msgs.PlacedOrderAck)
 	takeOrderAckRecvCh := make(chan msgs.TakeOrderAck)
 	takeOrderRecvCh := make(chan msgs.TakeOrderMsg)
 	completeOrderRecvCh := make(chan msgs.CompleteOrderMsg)
-	go bcast.Receiver(port, placedOrderRecvCh, placedOrderAckRecvCh, takeOrderAckRecvCh, takeOrderRecvCh, completeOrderRecvCh)
+	go bcast.Receiver(commonPort, placedOrderRecvCh, placedOrderAckRecvCh, takeOrderAckRecvCh, takeOrderRecvCh, completeOrderRecvCh)
 
 	peerTxEnable := make(chan bool)
 	peerStatusSendCh := make(chan msgs.Heartbeat)
-	go peers.Transmitter(port, peerTxEnable, peerStatusSendCh)
+	go peers.Transmitter(commonPort, peerTxEnable, peerStatusSendCh)
 
 	peerUpdateCh := make(chan peers.PeerUpdate, 1)
-	go peers.Receiver(port, peerUpdateCh)
+	go peers.Receiver(commonPort, peerUpdateCh)
 
 	// bookkeeping variables
 	ordersRecieved := make(map[int]msgs.Order)    // list of all placed orders to/from all elevators
@@ -54,8 +54,9 @@ func Launch(thisID string,
 
 	// Wait until all modules are initialized
 	wg.Done()
-	fmt.Println("Network initialized")
+	fmt.Println("[Network]: initialized")
 	wg.Wait()
+	fmt.Println("[Network]: starting")
 	for {
 		select {
 		case msg := <-placedOrderRecvCh:
@@ -102,7 +103,7 @@ func Launch(thisID string,
 				safeMsg := msgs.SafeOrderMsg{SenderID: thisID, ReceiverID: thisID, Order: msg.Order}
 				safeOrderCh <- safeMsg
 			}
-		case msg := <-otherTakeOrderCh:
+		case msg := <-broadcastTakeOrderCh:
 			takeOrderSendCh <- msg
 			takeUnackedOrders[msg.Order.ID] = time.Now()
 		case msg := <-takeOrderRecvCh:
@@ -162,6 +163,7 @@ func Launch(thisID string,
 			//heartbeat := msgs.Heartbeat{SenderID: thisID, Status: status, AcceptedOrders: acceptedOrders}
 		case <-time.After(1 * time.Second):
 			// an (empty) event every second, avoids some forms of locking
+			//fmt.Println("[network]: running")
 		}
 
 		// actions that happen on every update
@@ -203,7 +205,7 @@ func Launch(thisID string,
 // pseudo-orderHandler and fsm
 func PseudoOrderHandlerAndFsm(thisID string, simAddr string, thisElevatorHeartbeatCh chan<- msgs.Heartbeat,
 	allElevatorsHeartbeatCh <-chan []msgs.Heartbeat, downedElevatorsCh <-chan []msgs.Heartbeat,
-	placedOrderCh chan<- msgs.Order, thisTakeOrderCh <-chan msgs.TakeOrderMsg, otherTakeOrderCh chan<- msgs.TakeOrderMsg,
+	placedOrderCh chan<- msgs.Order, thisTakeOrderCh <-chan msgs.TakeOrderMsg, broadcastTakeOrderCh chan<- msgs.TakeOrderMsg,
 	safeOrderCh <-chan msgs.SafeOrderMsg, completedOrderCh chan<- msgs.Order, wg *sync.WaitGroup) { //,turnOnLightsCh chan<- [N_FLOORS][N_BUTTONS]bool) {
 
 	addHallOrderCh := make(chan fsm.OrderEvent)
@@ -230,8 +232,9 @@ func PseudoOrderHandlerAndFsm(thisID string, simAddr string, thisElevatorHeartbe
 
 	// Wait until all modules are initialized
 	wg.Done()
-	fmt.Println("PseudoOrderHandler initialized")
+	fmt.Println("[PseudoOrderHandler]: initialized")
 	wg.Wait()
+	fmt.Println("[PseudoOrderHandler]: starting")
 	for {
 		select {
 		case elevatorStatus = <-elevatorStatusCh: // Here
@@ -249,9 +252,9 @@ func PseudoOrderHandlerAndFsm(thisID string, simAddr string, thisElevatorHeartbe
 				AcceptedOrders: acceptedOrderList}
 
 			//TODO: deadlock zone, be careful!
-			//fmt.Println("[network]: writing to thisElevatorHeartbeatCh")
+			fmt.Println("[network]: writing to thisElevatorHeartbeatCh")
 			thisElevatorHeartbeatCh <- heartbeat
-			//fmt.Println("[network]: thisElevatorHeartbeatCh done")
+			fmt.Println("[network]: thisElevatorHeartbeatCh done")
 
 		case allElevatorsHeartbeat := <-allElevatorsHeartbeatCh: // debugging. OK
 
@@ -260,12 +263,9 @@ func PseudoOrderHandlerAndFsm(thisID string, simAddr string, thisElevatorHeartbe
 				//fmt.Printf("[peers]: Peer: %+v\n", elevatorHeartbeat)
 				elevators[elevatorHeartbeat.SenderID] = elevatorHeartbeat
 
-				if elevatorHeartbeat.SenderID != thisID {
-					//fmt.Printf("[lightSync]: different elevator found %+v\n", elevatorHeartbeat)
-					for _, acceptedOrder := range elevatorHeartbeat.AcceptedOrders {
-						turnOnLights[acceptedOrder.Floor][acceptedOrder.Type] = true
-					}
-				} // if else : Check if heartbeat of this elevator corresponds to the actual status
+				for _, acceptedOrder := range elevatorHeartbeat.AcceptedOrders {
+					turnOnLights[acceptedOrder.Floor][acceptedOrder.Type] = true
+				}
 			}
 
 			// debug
@@ -275,7 +275,7 @@ func PseudoOrderHandlerAndFsm(thisID string, simAddr string, thisElevatorHeartbe
 			}
 
 			fmt.Printf("[orderHandler]: elevators: %v\n", elevatorIDList)
-			turnOnLightsCh <- turnOnLights // can be all false
+			turnOnLightsCh <- turnOnLights
 		case downedElevators := <-downedElevatorsCh: // OK
 			for _, lastHeartbeat := range downedElevators {
 				// elevator is down
@@ -283,13 +283,13 @@ func PseudoOrderHandlerAndFsm(thisID string, simAddr string, thisElevatorHeartbe
 				// take order this elevator had
 				for _, order := range lastHeartbeat.AcceptedOrders {
 					orders[order.ID] = order
-					addHallOrderCh <- fsm.OrderEvent{order.Floor, order.Type, false} //turn on/off lights? ???
+					addHallOrderCh <- fsm.OrderEvent{order.Floor, order.Type, false} // quietly take order without turning on lights
 				}
 
 				delete(elevators, lastHeartbeat.SenderID)
 			}
-		case orderEventSlice := <-completedHallOrderCh: // OK
-			for _, completedOrder := range orderEventSlice {
+		case completedOrders := <-completedHallOrderCh: // OK
+			for _, completedOrder := range completedOrders {
 				for orderID, _ := range thisElevatorOrders {
 					if orders[orderID].Floor == completedOrder.Floor &&
 						orders[orderID].Type == completedOrder.Button {
@@ -307,7 +307,7 @@ func PseudoOrderHandlerAndFsm(thisID string, simAddr string, thisElevatorHeartbe
 			if _, exists := orders[msg.Order.ID]; !exists {
 				fmt.Printf("[thisTakeOrderCh]: didnt have order %v,from before, %v\n", msg.Order.ID, orders)
 				orders[msg.Order.ID] = msg.Order
-				addHallOrderCh <- fsm.OrderEvent{msg.Order.Floor, msg.Order.Type, true} // turn on/off light? ???
+				addHallOrderCh <- fsm.OrderEvent{msg.Order.Floor, msg.Order.Type, true}
 			}
 			// error checking
 			if orders[msg.Order.ID] != msg.Order {
@@ -354,13 +354,15 @@ func PseudoOrderHandlerAndFsm(thisID string, simAddr string, thisElevatorHeartbe
 					}
 
 					fmt.Printf("[orderHandler]: elevator %v should take order %v\n", bestID, safeMsg.Order.ID)
-					if bestID != thisID {
-						takeOrderMsg := msgs.TakeOrderMsg{SenderID: thisID, ReceiverID: bestID, Order: orders[safeMsg.Order.ID]}
-						otherTakeOrderCh <- takeOrderMsg
-					} else {
+					takeOrderMsg := msgs.TakeOrderMsg{SenderID: thisID, ReceiverID: bestID, Order: orders[safeMsg.Order.ID]}
+					broadcastTakeOrderCh <- takeOrderMsg
+
+					if bestID == thisID {
 						thisElevatorOrders[safeMsg.Order.ID] = true
-						addHallOrderCh <- fsm.OrderEvent{safeMsg.Order.Floor, safeMsg.Order.Type, true} // turn on/off light? ???
-						thisElevatorOrdersUpdated = true                                                // for debugging
+						addHallOrderCh <- fsm.OrderEvent{Floor: safeMsg.Order.Floor,
+							Button:  safeMsg.Order.Type,
+							LightOn: true}
+						thisElevatorOrdersUpdated = true // for debugging
 					}
 				} else {
 					fmt.Println("[orderHandler]: order didn't exist")
@@ -368,6 +370,7 @@ func PseudoOrderHandlerAndFsm(thisID string, simAddr string, thisElevatorHeartbe
 			}
 		case <-time.After(1 * time.Second):
 			// an (empty) event every second, avoids some forms of locking
+			//fmt.Println("[orderHandler]: running")
 		}
 
 		if thisElevatorOrdersUpdated {
