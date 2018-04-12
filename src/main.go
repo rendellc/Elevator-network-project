@@ -1,8 +1,10 @@
 package main
 
 import (
+	"./fsm"
 	"./msgs"
 	"./network"
+	"./orderhandler"
 	"flag"
 	"math/rand"
 	"sync"
@@ -27,8 +29,8 @@ func main() {
 
 	// Channels: FSM -> OrderHandler
 	elevatorStatusCh := make(chan fsm.Elevator)
-	placedHallOrderCh := make(chan msgs.Order)
-	completedOrderThisElevCh := make(chan msgs.Order)
+	placedHallOrderCh := make(chan fsm.OrderEvent)
+	completedOrderThisElevCh := make(chan []fsm.OrderEvent)
 
 	// Channels: OrderHandler -> FSM
 	addHallOrderCh := make(chan fsm.OrderEvent)
@@ -42,7 +44,7 @@ func main() {
 	thisElevatorHeartbeatCh := make(chan msgs.Heartbeat)
 
 	// Channels: Network -> OrderHandler
-	allElevatorsHeartbeatCh := make(chan msgs.Heartbeat)
+	allElevatorsHeartbeatCh := make(chan []msgs.Heartbeat)
 	safeOrderCh := make(chan msgs.SafeOrderMsg)
 	thisTakeOrderCh := make(chan msgs.TakeOrderMsg)
 	downedElevatorsCh := make(chan []msgs.Heartbeat)
@@ -58,10 +60,10 @@ func main() {
 		thisElevatorHeartbeatCh, downedElevatorsCh, placedOrderCh,
 		broadcastTakeOrderCh, completedOrderCh,
 		allElevatorsHeartbeatCh, thisTakeOrderCh, safeOrderCh,
-		orderCompletedOtherElevCh,
+		completedOrderOtherElevCh,
 		&wg)
 
-	go order.OrderHandler(*id_ptr,
+	go orderhandler.OrderHandler(*id_ptr,
 		elevatorStatusCh, allElevatorsHeartbeatCh, placedHallOrderCh, safeOrderCh,
 		thisTakeOrderCh, downedElevatorsCh, completedOrderThisElevCh,
 		completedOrderOtherElevCh,
@@ -69,8 +71,8 @@ func main() {
 		completedOrderCh, thisElevatorHeartbeatCh, turnOnLightsCh,
 		&wg)
 
-	go fsm.FSM(elevServerAddr, addHallOrderCh, deleteHallOrderCh,
-		placedHallOrderCh, completedHallOrderCh,
+	go fsm.FSM(*elevServerAddr_ptr, addHallOrderCh, deleteHallOrderCh,
+		placedHallOrderCh, completedOrderThisElevCh,
 		elevatorStatusCh, turnOnLightsCh, &wg)
 
 	for {
