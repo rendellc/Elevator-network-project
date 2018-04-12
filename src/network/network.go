@@ -151,6 +151,8 @@ func Launch(thisID string,
 		case msg := <-completeOrderRecvCh:
 			if _, exists := ongoingOrders[msg.Order.ID]; exists {
 				fmt.Println("[orderCompletedRecvCh]: ", msg.Order)
+				delete(ongoingOrders, msg.Order.ID)
+				delete(recievedOrders, msg.Order.ID)
 			}
 		case heartbeat := <-thisElevatorHeartbeatCh:
 			// heartbeat may lacks thisID
@@ -239,7 +241,7 @@ func PseudoOrderHandlerAndFsm(thisID string, simAddr string, thisElevatorHeartbe
 				if order, exists := orders[orderID]; exists {
 					acceptedOrderList = append(acceptedOrderList, order)
 				} else {
-					fmt.Printf("[elevatorStatusCh]: Warn: orderID %v dthisIDn't exist")
+					fmt.Printf("[elevatorStatusCh]: orderID %v didn't exist")
 				}
 			}
 
@@ -283,6 +285,7 @@ func PseudoOrderHandlerAndFsm(thisID string, simAddr string, thisElevatorHeartbe
 				delete(elevators, lastHeartbeat.SenderID)
 			}
 		case completedOrders := <-completedHallOrderCh: // OK
+			// find and remove all equivalent orders
 			for _, completedOrder := range completedOrders {
 				for orderID, _ := range thisElevatorOrders {
 					if orders[orderID].Floor == completedOrder.Floor &&
@@ -301,12 +304,13 @@ func PseudoOrderHandlerAndFsm(thisID string, simAddr string, thisElevatorHeartbe
 			if _, exists := orders[msg.Order.ID]; !exists {
 				orders[msg.Order.ID] = msg.Order
 				fmt.Printf("[thisTakeOrderCh]: didnt have order %v,from before, %v\n", msg.Order.ID, orders)
-				addHallOrderCh <- fsm.OrderEvent{msg.Order.Floor, msg.Order.Type, true}
 			}
-			// error checking
+			// error checking, TODO: maybe take both orders when an error occours
 			if orders[msg.Order.ID] != msg.Order {
 				fmt.Printf("[thisTakeOrderCh]: had different order with same ID \n\t(my)%+v\n\t(recv)%+v\n", orders[msg.Order.ID], msg.Order)
 			}
+
+			addHallOrderCh <- fsm.OrderEvent{msg.Order.Floor, msg.Order.Type, true}
 			//acceptedOrders[msg.Order.ID] = true
 			thisElevatorOrders[msg.Order.ID] = true
 			thisElevatorOrdersUpdated = true // for debugging
@@ -362,9 +366,20 @@ func PseudoOrderHandlerAndFsm(thisID string, simAddr string, thisElevatorHeartbe
 					fmt.Println("[orderHandler]: order didn't exist")
 				}
 			}
-		case <-time.After(1 * time.Second):
+		case <-time.After(15 * time.Second):
 			// an (empty) event every second, avoids some forms of locking
 			//fmt.Println("[orderHandler]: running")
+			var orderList []msgs.Order
+			for orderID, _ := range acceptedOrders {
+				if order, exists := orders[orderID]; !exists {
+					fmt.Println("[orderHandler]: ERROR: have accepted non-existing order", orderID)
+					continue
+				} else {
+					orderList = append(orderList, order)
+				}
+			}
+
+			fmt.Printf("[orderHandler]: acceptedList: %v\n", orderList)
 		}
 
 		if thisElevatorOrdersUpdated {

@@ -188,7 +188,7 @@ func FSM(simAddr string, addHallOrderCh <-chan OrderEvent, deleteHallOrderCh <-c
 
 	//elevatorStatusCh <- currElevator
 	for {
-		//fmt.Println("[fsm]: Hall Up first floor: ", currElevator.Orders[0][0])
+		fmt.Println("[fsm]: running")
 		select {
 		case buttonEvent := <-buttonCh:
 			if buttonEvent.Button == elevio.BT_Cab {
@@ -346,5 +346,6 @@ func EstimatedCompletionTime(elev Elevator, orderEvent OrderEvent) float64 { // 
 		elev.Floor += int(elev.Dir)
 		duration += TRAVEL_TIME
 		//////fmt.Println("Duration until now %f", duration)
+		fmt.Printf(".")
 	}
 }
