@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"sync"
 	"time"
-	//"../order_handler"
 )
 
 type State int
@@ -281,7 +280,7 @@ func FSM(simAddr string, addHallOrderCh <-chan OrderEvent, deleteHallOrderCh <-c
 
 		case turnOnLights := <-turnOnLightsCh:
 			for floor := 0; floor < N_FLOORS; floor++ {
-				for button := 0; button < N_BUTTONS; button++ {
+				for button := 0; button < N_BUTTONS-1; button++ { // note ignoring cab call lights
 					elevio.SetButtonLamp(elevio.ButtonType(button), floor, turnOnLights[floor][button])
 				}
 			}

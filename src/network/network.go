@@ -138,8 +138,14 @@ func Launch(thisID string,
 				fmt.Println("[peerUpdateCh]: New: ", peerUpdate.New)
 			}
 
-			// TODO: this sometimes deadlocks with thisElevatorHeartbeatCh, probably due to some circular dependecy
 			//fmt.Println("[network]: writing to allElevatorsHeartbeatCh")
+
+			//for _, hb := range peerUpdate.Peers {
+			//	if hb.SenderID == "1" {
+			//		fmt.Printf("1 has Orders[1][0]: %v\n", hb.Status.Orders[1][0])
+			//	}
+			//}
+
 			allElevatorsHeartbeatCh <- peerUpdate.Peers
 			//fmt.Println("[network]: allElevatorsHeartbeatCh done")
 		case order := <-completedOrderCh:
@@ -251,10 +257,9 @@ func PseudoOrderHandlerAndFsm(thisID string, simAddr string, thisElevatorHeartbe
 				Status:         elevatorStatus,
 				AcceptedOrders: acceptedOrderList}
 
-			//TODO: deadlock zone, be careful!
-			fmt.Println("[network]: writing to thisElevatorHeartbeatCh")
+			//fmt.Println("[network]: writing to thisElevatorHeartbeatCh")
 			thisElevatorHeartbeatCh <- heartbeat
-			fmt.Println("[network]: thisElevatorHeartbeatCh done")
+			//fmt.Println("[network]: thisElevatorHeartbeatCh done")
 
 		case allElevatorsHeartbeat := <-allElevatorsHeartbeatCh: // debugging. OK
 
