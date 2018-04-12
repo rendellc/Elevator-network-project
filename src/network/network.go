@@ -47,25 +47,25 @@ func Launch(thisID string,
 	go peers.Receiver(commonPort, peerUpdateCh)
 
 	// bookkeeping variables
-	ordersRecieved := make(map[int]msgs.Order)    // list of all placed orders to/from all elevators
+	recievedOrders := make(map[int]msgs.Order)    // list of all placed orders to/from all elevators
 	placeUnackedOrders := make(map[int]time.Time) // time is time when added
 	takeUnackedOrders := make(map[int]time.Time)  // time is time when added
 	ongoingOrders := make(map[int]time.Time)      // time is time when added
 
 	// Wait until all modules are initialized
 	wg.Done()
-	fmt.Println("[Network]: initialized")
+	fmt.Println("[network]: initialized")
 	wg.Wait()
-	fmt.Println("[Network]: starting")
+	fmt.Println("[network]: starting")
 	for {
 		select {
 		case msg := <-placedOrderRecvCh:
 			// store order
-			if _, exists := ordersRecieved[msg.Order.ID]; exists {
+			if _, exists := recievedOrders[msg.Order.ID]; exists {
 				fmt.Printf("[placedOrderRecvCh]: Warning, order id %v already exists, new order ignored\n", msg.Order.ID)
 				break
 			}
-			ordersRecieved[msg.Order.ID] = msg.Order
+			recievedOrders[msg.Order.ID] = msg.Order
 
 			if msg.SenderID != thisID { // ignore internal msgs
 				// Order transmitted from other node
@@ -99,7 +99,6 @@ func Launch(thisID string,
 				delete(placeUnackedOrders, msg.Order.ID)
 
 				// Order is safe since multiple elevators knows about it, notify orderHandler
-				// TODO: RecieverID shouldn't be filled in?
 				safeMsg := msgs.SafeOrderMsg{SenderID: thisID, ReceiverID: thisID, Order: msg.Order}
 				safeOrderCh <- safeMsg
 			}
@@ -113,18 +112,18 @@ func Launch(thisID string,
 				ack := msgs.TakeOrderAck{SenderID: thisID, ReceiverID: msg.SenderID, Order: msg.Order}
 				takeOrderAckSendCh <- ack
 			}
+
 		case msg := <-takeOrderAckRecvCh:
 			if msg.ReceiverID == thisID {
 				fmt.Printf("[takeOrderAckRecvCh]: Recieved ack: %v\n", msg)
 				delete(takeUnackedOrders, msg.Order.ID)
-
 			}
 
 			// contains all ongoing orders from all elevators
 			ongoingOrders[msg.Order.ID] = time.Now()
+
 		case peerUpdate := <-peerUpdateCh:
 			if len(peerUpdate.Lost) > 0 {
-
 				var downedElevators []msgs.Heartbeat
 				for _, lastHeartbeat := range peerUpdate.Lost {
 					fmt.Printf("[peerUpdateCh]: lost %v\n", lastHeartbeat.SenderID)
@@ -139,36 +138,25 @@ func Launch(thisID string,
 			}
 
 			//fmt.Println("[network]: writing to allElevatorsHeartbeatCh")
-
-			//for _, hb := range peerUpdate.Peers {
-			//	if hb.SenderID == "1" {
-			//		fmt.Printf("1 has Orders[1][0]: %v\n", hb.Status.Orders[1][0])
-			//	}
-			//}
-
 			allElevatorsHeartbeatCh <- peerUpdate.Peers
 			//fmt.Println("[network]: allElevatorsHeartbeatCh done")
+
 		case order := <-completedOrderCh:
 			fmt.Println("[orderCompletedCh]: ", order)
-
+			delete(ongoingOrders, order.ID)
+			delete(recievedOrders, order.ID)
 			completeOrderSendCh <- msgs.CompleteOrderMsg{Order: order}
+
 		case msg := <-completeOrderRecvCh:
 			if _, exists := ongoingOrders[msg.Order.ID]; exists {
 				fmt.Println("[orderCompletedRecvCh]: ", msg.Order)
-				delete(ongoingOrders, msg.Order.ID)
 			}
 		case heartbeat := <-thisElevatorHeartbeatCh:
-			// heartbeat lacks thisID
+			// heartbeat may lacks thisID
 			heartbeat.SenderID = thisID
-
 			peerStatusSendCh <- heartbeat
-			//var acceptedOrders []msgs.Order
-			//for orderID, _ := range ongoingOrders {
-			//	acceptedOrders = append(acceptedOrders, ordersRecieved[orderID])
-			//}
-			//heartbeat := msgs.Heartbeat{SenderID: thisID, Status: status, AcceptedOrders: acceptedOrders}
+
 		case <-time.After(1 * time.Second):
-			// an (empty) event every second, avoids some forms of locking
 			//fmt.Println("[network]: running")
 		}
 
@@ -187,7 +175,8 @@ func Launch(thisID string,
 			if time.Now().Sub(t) > giveupAckwaitTimeout {
 				fmt.Printf("[timeout]: take ack for %v\n", orderID)
 				msg := msgs.TakeOrderMsg{SenderID: thisID, ReceiverID: thisID,
-					Order: ordersRecieved[orderID]} // TODO: get information to fill out order floor etc. elevator behaviour shouldn't need this
+					Order: recievedOrders[orderID]}
+
 				thisTakeOrderCh <- msg
 
 				delete(takeUnackedOrders, orderID)
@@ -199,10 +188,10 @@ func Launch(thisID string,
 				fmt.Printf("[timeout]: complete not recieved for %v\n\t%v\n", orderID, ongoingOrders)
 
 				msg := msgs.TakeOrderMsg{SenderID: thisID, ReceiverID: thisID,
-					Order: ordersRecieved[orderID]} // TODO: get information to fill out order floor etc. elevator behaviour shouldn't need this
+					Order: recievedOrders[orderID]} // TODO: get information to fill out order floor etc. elevator behaviour shouldn't need this
 				thisTakeOrderCh <- msg
 				delete(ongoingOrders, orderID)
-				delete(ordersRecieved, orderID)
+				delete(recievedOrders, orderID)
 			}
 		}
 	}
@@ -212,7 +201,7 @@ func Launch(thisID string,
 func PseudoOrderHandlerAndFsm(thisID string, simAddr string, thisElevatorHeartbeatCh chan<- msgs.Heartbeat,
 	allElevatorsHeartbeatCh <-chan []msgs.Heartbeat, downedElevatorsCh <-chan []msgs.Heartbeat,
 	placedOrderCh chan<- msgs.Order, thisTakeOrderCh <-chan msgs.TakeOrderMsg, broadcastTakeOrderCh chan<- msgs.TakeOrderMsg,
-	safeOrderCh <-chan msgs.SafeOrderMsg, completedOrderCh chan<- msgs.Order, wg *sync.WaitGroup) { //,turnOnLightsCh chan<- [N_FLOORS][N_BUTTONS]bool) {
+	safeOrderCh <-chan msgs.SafeOrderMsg, completedOrderCh chan<- msgs.Order, wg *sync.WaitGroup) {
 
 	addHallOrderCh := make(chan fsm.OrderEvent)
 	deleteHallOrderCh := make(chan fsm.OrderEvent)
@@ -260,12 +249,10 @@ func PseudoOrderHandlerAndFsm(thisID string, simAddr string, thisElevatorHeartbe
 			//fmt.Println("[network]: writing to thisElevatorHeartbeatCh")
 			thisElevatorHeartbeatCh <- heartbeat
 			//fmt.Println("[network]: thisElevatorHeartbeatCh done")
-
 		case allElevatorsHeartbeat := <-allElevatorsHeartbeatCh: // debugging. OK
 
 			var turnOnLights [N_FLOORS][N_BUTTONS]bool
 			for _, elevatorHeartbeat := range allElevatorsHeartbeat {
-				//fmt.Printf("[peers]: Peer: %+v\n", elevatorHeartbeat)
 				elevators[elevatorHeartbeat.SenderID] = elevatorHeartbeat
 
 				for _, acceptedOrder := range elevatorHeartbeat.AcceptedOrders {
@@ -281,6 +268,7 @@ func PseudoOrderHandlerAndFsm(thisID string, simAddr string, thisElevatorHeartbe
 
 			fmt.Printf("[orderHandler]: elevators: %v\n", elevatorIDList)
 			turnOnLightsCh <- turnOnLights
+
 		case downedElevators := <-downedElevatorsCh: // OK
 			for _, lastHeartbeat := range downedElevators {
 				// elevator is down

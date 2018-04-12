@@ -292,11 +292,12 @@ func FSM(simAddr string, addHallOrderCh <-chan OrderEvent, deleteHallOrderCh <-c
 			for floor := 0; floor < N_FLOORS; floor++ {
 				for button := 0; button < N_BUTTONS; button++ {
 					if !currElevator.Orders[floor][button] && prevElevator.Orders[floor][button] {
-						completedHallOrderSlice = append(completedHallOrderSlice, OrderEvent{floor, elevio.ButtonType(button), false})
+						completedHallOrderSlice = append(completedHallOrderSlice, OrderEvent{Floor: floor, Button: elevio.ButtonType(button)})
 					}
 				}
 			}
 			if len(completedHallOrderSlice) > 0 {
+				fmt.Println("[fsm]: completing orders")
 				completedHallOrderCh <- completedHallOrderSlice
 			}
 			elevatorStatusCh <- currElevator
