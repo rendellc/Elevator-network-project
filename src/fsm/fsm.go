@@ -163,12 +163,12 @@ func clearOrdersAtFloor(elev *Elevator, simulationMode bool) {
 	}
 }
 
-func FSM(simAddr string, addHallOrderCh <-chan OrderEvent, deleteHallOrderCh <-chan OrderEvent,
+func FSM(elevServerAddr string, addHallOrderCh <-chan OrderEvent, deleteHallOrderCh <-chan OrderEvent,
 	placedHallOrderCh chan<- OrderEvent, completedHallOrderCh chan<- []OrderEvent,
 	elevatorStatusCh chan<- Elevator, turnOnLightsCh <-chan [N_FLOORS][N_BUTTONS]bool, wg *sync.WaitGroup) {
 
 	//fmt.Println("[fsm]: starting")
-	elevio.Init(simAddr, N_FLOORS)
+	elevio.Init(elevServerAddr, N_FLOORS)
 	//fmt.Println("Hardware initialized")
 	buttonCh := make(chan elevio.ButtonEvent)
 	floorSensorCh := make(chan int)
@@ -282,7 +282,7 @@ func FSM(simAddr string, addHallOrderCh <-chan OrderEvent, deleteHallOrderCh <-c
 				for button := 0; button < N_BUTTONS-1; button++ { // note ignoring cab call lights
 					if !(floor == N_FLOORS-1 && elevio.ButtonType(button) == elevio.BT_HallUp) &&
 						!(floor == 0 && elevio.ButtonType(button) == elevio.BT_HallDown) &&
-						turnOnLights[floor][button]{
+						turnOnLights[floor][button] {
 						elevio.SetButtonLamp(elevio.ButtonType(button), floor, true)
 					}
 				}
