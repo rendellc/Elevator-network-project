@@ -281,7 +281,11 @@ func FSM(simAddr string, addHallOrderCh <-chan OrderEvent, deleteHallOrderCh <-c
 		case turnOnLights := <-turnOnLightsCh:
 			for floor := 0; floor < N_FLOORS; floor++ {
 				for button := 0; button < N_BUTTONS-1; button++ { // note ignoring cab call lights
-					elevio.SetButtonLamp(elevio.ButtonType(button), floor, turnOnLights[floor][button])
+					if (floor != N_FLOORS && elevio.ButtonType(button) != elevio.BT_HallUp) &&
+						(floor != 0 && elevio.ButtonType(button) != elevio.BT_HallDown) {
+
+						elevio.SetButtonLamp(elevio.ButtonType(button), floor, turnOnLights[floor][button])
+					}
 				}
 			}
 		case <-time.After(1 * time.Second):
@@ -336,6 +340,7 @@ func EstimatedCompletionTime(elev Elevator, orderEvent OrderEvent) float64 { // 
 				////fmt.Println("Duration until completion %f", duration)
 				return duration
 			}
+			fmt.Printf(".")
 		}
 		elev.Floor += int(elev.Dir)
 		duration += TRAVEL_TIME

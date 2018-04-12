@@ -105,6 +105,7 @@ func Launch(thisID string,
 		case msg := <-broadcastTakeOrderCh:
 			takeOrderSendCh <- msg
 			takeUnackedOrders[msg.Order.ID] = time.Now()
+
 		case msg := <-takeOrderRecvCh:
 			if msg.ReceiverID == thisID {
 				thisTakeOrderCh <- msg
@@ -173,7 +174,7 @@ func Launch(thisID string,
 
 		for orderID, t := range takeUnackedOrders {
 			if time.Now().Sub(t) > giveupAckwaitTimeout {
-				fmt.Printf("[timeout]: take ack for %v\n", orderID)
+				//fmt.Printf("[timeout]: take ack for %v\n", orderID)
 				msg := msgs.TakeOrderMsg{SenderID: thisID, ReceiverID: thisID,
 					Order: recievedOrders[orderID]}
 
@@ -185,7 +186,7 @@ func Launch(thisID string,
 
 		for orderID, t := range ongoingOrders {
 			if time.Now().Sub(t) > 30*time.Second {
-				fmt.Printf("[timeout]: complete not recieved for %v\n\t%v\n", orderID, ongoingOrders)
+				//fmt.Printf("[timeout]: complete not recieved for %v\n\t%v\n", orderID, ongoingOrders)
 
 				msg := msgs.TakeOrderMsg{SenderID: thisID, ReceiverID: thisID,
 					Order: recievedOrders[orderID]} // TODO: get information to fill out order floor etc. elevator behaviour shouldn't need this
@@ -298,8 +299,8 @@ func PseudoOrderHandlerAndFsm(thisID string, simAddr string, thisElevatorHeartbe
 			}
 		case msg := <-thisTakeOrderCh: // OK
 			if _, exists := orders[msg.Order.ID]; !exists {
-				fmt.Printf("[thisTakeOrderCh]: didnt have order %v,from before, %v\n", msg.Order.ID, orders)
 				orders[msg.Order.ID] = msg.Order
+				fmt.Printf("[thisTakeOrderCh]: didnt have order %v,from before, %v\n", msg.Order.ID, orders)
 				addHallOrderCh <- fsm.OrderEvent{msg.Order.Floor, msg.Order.Type, true}
 			}
 			// error checking
