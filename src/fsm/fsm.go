@@ -188,6 +188,7 @@ func FSM(simAddr string, addHallOrderCh <-chan OrderEvent, deleteHallOrderCh <-c
 
 	//elevatorStatusCh <- currElevator
 	for {
+		//fmt.Println("[fsm]: Hall Up first floor: ", currElevator.Orders[0][0])
 		select {
 		case buttonEvent := <-buttonCh:
 			if buttonEvent.Button == elevio.BT_Cab {
@@ -281,8 +282,8 @@ func FSM(simAddr string, addHallOrderCh <-chan OrderEvent, deleteHallOrderCh <-c
 		case turnOnLights := <-turnOnLightsCh:
 			for floor := 0; floor < N_FLOORS; floor++ {
 				for button := 0; button < N_BUTTONS-1; button++ { // note ignoring cab call lights
-					if (floor != N_FLOORS && elevio.ButtonType(button) != elevio.BT_HallUp) &&
-						(floor != 0 && elevio.ButtonType(button) != elevio.BT_HallDown) {
+					if !(floor == N_FLOORS-1 && elevio.ButtonType(button) == elevio.BT_HallUp) &&
+						!(floor == 0 && elevio.ButtonType(button) == elevio.BT_HallDown) {
 
 						elevio.SetButtonLamp(elevio.ButtonType(button), floor, turnOnLights[floor][button])
 					}
