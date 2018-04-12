@@ -247,8 +247,6 @@ func FSM(simAddr string, addHallOrderCh <-chan OrderEvent, deleteHallOrderCh <-c
 		case hallOrder := <-deleteHallOrderCh:
 			//fmt.Printf("[fsm]: Delete order %+v\n", hallOrder)
 
-			// TODO: Maybe validate order here? (check that hallOrder.Floor is reasonable) So that invalid hallOrder doesn't cause index out of bounds crash
-
 			currElevator.Orders[hallOrder.Floor][hallOrder.Button] = false
 			elevio.SetButtonLamp(hallOrder.Button, hallOrder.Floor, false)
 			if currElevator.State == DOOR_OPEN {
@@ -283,12 +281,15 @@ func FSM(simAddr string, addHallOrderCh <-chan OrderEvent, deleteHallOrderCh <-c
 			for floor := 0; floor < N_FLOORS; floor++ {
 				for button := 0; button < N_BUTTONS-1; button++ { // note ignoring cab call lights
 					if !(floor == N_FLOORS-1 && elevio.ButtonType(button) == elevio.BT_HallUp) &&
-						!(floor == 0 && elevio.ButtonType(button) == elevio.BT_HallDown) {
-
-						elevio.SetButtonLamp(elevio.ButtonType(button), floor, turnOnLights[floor][button])
+						!(floor == 0 && elevio.ButtonType(button) == elevio.BT_HallDown) &&
+						turnOnLights[floor][button]{
+						elevio.SetButtonLamp(elevio.ButtonType(button), floor, true)
 					}
 				}
 			}
+
+			//channel for turnOffLights ?
+
 		case <-time.After(1 * time.Second):
 			//fmt.Println("[fsm]: running")
 		}

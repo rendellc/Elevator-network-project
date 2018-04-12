@@ -27,7 +27,8 @@ type CompleteOrderMsg OrderMsg
 type Heartbeat struct {
 	SenderID       string       `json:"sender_id"`
 	Status         fsm.Elevator `json:"elevator_status"`
-	AcceptedOrders []Order      `json:"accepted_orders"`
+	AcceptedOrders map[int]Order      `json:"accepted_orders"`
+	TakenOrders map[int]Order      `json:"taken_orders"`
 }
 
 // sort.Interface for heartbeat slices

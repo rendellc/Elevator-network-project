@@ -34,19 +34,23 @@ func main() {
 	otherTakeOrderCh := make(chan msgs.TakeOrderMsg)
 	safeOrderCh := make(chan msgs.SafeOrderMsg)
 	completedOrderCh := make(chan msgs.Order)
-	//turnOnLightsCh := make(chan [N_FLOORS][N_BUTTONS]bool)
+	turnOnLightsCh := make(chan [N_FLOORS][N_BUTTONS]bool)
 
 	go network.Launch(*id_ptr,
 		thisElevatorHeartbeatCh, allElevatorsHeartbeatCh, downedElevatorsCh,
 		placedOrderCh, thisTakeOrderCh, otherTakeOrderCh,
 		safeOrderCh, completedOrderCh, &wg)
-	
-	go network.PseudoOrderHandlerAndFsm(*id_ptr, *simAddr_ptr,
-		thisElevatorHeartbeatCh, allElevatorsHeartbeatCh, downedElevatorsCh,
-		placedOrderCh, thisTakeOrderCh, otherTakeOrderCh,
-		safeOrderCh, completedOrderCh, &wg) //, turnOnLightsCh)
+
+	go order.OrderHandler(... )
+
+	go fsm.FSM(simAddr, addHallOrderCh, deleteHallOrderCh,
+		placedHallOrderCh, completedHallOrderCh,
+		elevatorStatusCh, turnOnLightsCh, wg)
+
 
 	for {
-		select {}
+		select{
+
+		}
 	}
 }
