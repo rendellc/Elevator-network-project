@@ -5,6 +5,7 @@ import (
 	"../comm/peers"
 	"../msgs"
 	"fmt"
+	"github.com/hectane/go-nonblockingchan"
 	"math/rand"
 	"sync"
 	"time"
@@ -21,16 +22,16 @@ const N_BUTTONS = 3
 
 func Launch(thisID string,
 	/* read */
-	thisElevatorHeartbeatCh <-chan msgs.Heartbeat,
-	downedElevatorsCh chan<- []msgs.Heartbeat,
-	placedOrderCh <-chan msgs.Order,
-	broadcastTakeOrderCh <-chan msgs.TakeOrderMsg,
-	completedOrderCh <-chan msgs.Order,
+	thisElevatorHeartbeatCh *nbc.NonBlockingChan,
+	downedElevatorsCh *nbc.NonBlockingChan,
+	placedOrderCh *nbc.NonBlockingChan,
+	broadcastTakeOrderCh *nbc.NonBlockingChan,
+	completedOrderCh *nbc.NonBlockingChan,
 	/* write */
-	allElevatorsHeartbeatCh chan<- []msgs.Heartbeat,
-	thisTakeOrderCh chan<- msgs.TakeOrderMsg,
-	safeOrderCh chan<- msgs.SafeOrderMsg,
-	completedOrderOtherElevCh chan<- msgs.Order,
+	allElevatorsHeartbeatCh *nbc.NonBlockingChan,
+	thisTakeOrderCh *nbc.NonBlockingChan,
+	safeOrderCh *nbc.NonBlockingChan,
+	completedOrderOtherElevCh *nbc.NonBlockingChan,
 	/* sync */
 	wg *sync.WaitGroup) {
 
@@ -86,7 +87,8 @@ func Launch(thisID string,
 				fmt.Printf("[placedOrderRecvCh]: Sending ack to %v for order %v\n", ack.ReceiverID, ack.Order.ID)
 				placedOrderAckSendCh <- ack
 			}
-		case order := <-placedOrderCh:
+		case msg, _ := <-placedOrderCh.Recv:
+			order := msg.(msgs.Order)
 			// This node has sent out an order. Needs to listen for acks
 			if ackwait, exists := placeUnackedOrders[order.ID]; exists {
 				fmt.Printf("[placedOrderRecvCh]: Warning, ack wait id %v already exists %v\n", order.ID, time.Now().Sub(ackwait))
@@ -109,15 +111,16 @@ func Launch(thisID string,
 
 				// Order is safe since multiple elevators knows about it, notify orderHandler
 				safeMsg := msgs.SafeOrderMsg{SenderID: thisID, ReceiverID: thisID, Order: msg.Order}
-				safeOrderCh <- safeMsg
+				safeOrderCh.Send <- safeMsg
 			}
-		case msg := <-broadcastTakeOrderCh:
-			takeOrderSendCh <- msg
-			takeUnackedOrders[msg.Order.ID] = time.Now()
+		case msg, _ := <-broadcastTakeOrderCh.Recv:
+			takeOrderMsg := msg.(msgs.TakeOrderMsg)
+			takeOrderSendCh <- takeOrderMsg
+			takeUnackedOrders[takeOrderMsg.Order.ID] = time.Now()
 
 		case msg := <-takeOrderRecvCh:
 			if msg.ReceiverID == thisID {
-				thisTakeOrderCh <- msg
+				thisTakeOrderCh.Send <- msg
 
 				ack := msgs.TakeOrderAck{SenderID: thisID, ReceiverID: msg.SenderID, Order: msg.Order}
 
@@ -141,7 +144,7 @@ func Launch(thisID string,
 					downedElevators = append(downedElevators, lastHeartbeat)
 				}
 
-				downedElevatorsCh <- downedElevators
+				downedElevatorsCh.Send <- downedElevators
 			}
 
 			if len(peerUpdate.New) > 0 {
@@ -149,10 +152,11 @@ func Launch(thisID string,
 			}
 
 			fmt.Println("[network]: allElevatorsHeartbeatCh write")
-			allElevatorsHeartbeatCh <- peerUpdate.Peers
+			allElevatorsHeartbeatCh.Send <- peerUpdate.Peers
 			fmt.Println("[network]: allElevatorsHeartbeatCh done")
 
-		case order := <-completedOrderCh:
+		case msg, _ := <-completedOrderCh.Recv:
+			order := msg.(msgs.Order)
 			fmt.Println("[orderCompletedCh]: ", order)
 			delete(allOngoingOrders, order.ID)
 			delete(recievedOrders, order.ID)
@@ -166,11 +170,12 @@ func Launch(thisID string,
 
 			if msg.SenderID != thisID {
 				// TODO: send to order handler
-				completedOrderOtherElevCh <- msg.Order
+				completedOrderOtherElevCh.Send <- msg.Order
 			}
 			//}
 
-		case heartbeat := <-thisElevatorHeartbeatCh:
+		case msg, _ := <-thisElevatorHeartbeatCh.Recv:
+			heartbeat := msg.(msgs.Heartbeat)
 			// heartbeat may lacks thisID
 			heartbeat.SenderID = thisID
 

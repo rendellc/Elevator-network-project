@@ -2,7 +2,6 @@ package main
 
 import (
 	"./fsm"
-	"./msgs"
 	"./network"
 	"./orderhandler"
 	"flag"
@@ -29,27 +28,27 @@ func main() {
 	wg.Add(3)
 
 	// Channels: FSM -> OrderHandler
-	elevatorStatusCh := make(chan fsm.Elevator)
-	placedHallOrderCh := make(chan fsm.OrderEvent)
-	completedOrderThisElevCh := make(chan []fsm.OrderEvent)
+	elevatorStatusCh := nbc.New()         //make(chan fsm.Elevator)
+	placedHallOrderCh := nbc.New()        //make(chan fsm.OrderEvent)
+	completedOrderThisElevCh := nbc.New() //make(chan []fsm.OrderEvent)
 
 	// Channels: OrderHandler -> FSM
-	addHallOrderCh := make(chan fsm.OrderEvent)
-	deleteHallOrderCh := make(chan fsm.OrderEvent)
-	turnOnLightsCh := make(chan [N_FLOORS][N_BUTTONS]bool)
+	addHallOrderCh := nbc.New()    //make(chan fsm.OrderEvent)
+	deleteHallOrderCh := nbc.New() //make(chan fsm.OrderEvent)
+	turnOnLightsCh := nbc.New()    //make(chan [N_FLOORS][N_BUTTONS]bool)
 
 	// Channels: OrderHandler -> Network
-	broadcastTakeOrderCh := make(chan msgs.TakeOrderMsg)
-	placedOrderCh := make(chan msgs.Order)
-	completedOrderCh := make(chan msgs.Order)
-	thisElevatorHeartbeatCh := make(chan msgs.Heartbeat)
+	broadcastTakeOrderCh := nbc.New()    //make(chan msgs.TakeOrderMsg)
+	placedOrderCh := nbc.New()           //make(chan msgs.Order)
+	completedOrderCh := nbc.New()        //make(chan msgs.Order)
+	thisElevatorHeartbeatCh := nbc.New() //make(chan msgs.Heartbeat)
 
 	// Channels: Network -> OrderHandler
-	allElevatorsHeartbeatCh := make(chan []msgs.Heartbeat)
-	safeOrderCh := make(chan msgs.SafeOrderMsg)
-	thisTakeOrderCh := make(chan msgs.TakeOrderMsg)
-	downedElevatorsCh := make(chan []msgs.Heartbeat)
-	completedOrderOtherElevCh := make(chan msgs.Order)
+	allElevatorsHeartbeatCh := nbc.New()   //make(chan []msgs.Heartbeat)
+	safeOrderCh := nbc.New()               //make(chan msgs.SafeOrderMsg)
+	thisTakeOrderCh := nbc.New()           //make(chan msgs.TakeOrderMsg)
+	downedElevatorsCh := nbc.New()         //make(chan []msgs.Heartbeat)
+	completedOrderOtherElevCh := nbc.New() //make(chan msgs.Order)
 
 	// Channels: Network -> FSM
 	// (none)

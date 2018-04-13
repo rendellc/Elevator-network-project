@@ -3,6 +3,7 @@ package fsm
 import (
 	"../elevio"
 	"fmt"
+	"github.com/hectane/go-nonblockingchan"
 	"sync"
 	"time"
 )
@@ -162,9 +163,9 @@ func clearOrdersAtFloor(elev *Elevator, simulationMode bool) {
 	}
 }
 
-func FSM(elevServerAddr string, addHallOrderCh <-chan OrderEvent, deleteHallOrderCh <-chan OrderEvent,
-	placedHallOrderCh chan<- OrderEvent, completedHallOrderCh chan<- []OrderEvent,
-	elevatorStatusCh chan<- Elevator, turnOnLightsCh <-chan [N_FLOORS][N_BUTTONS]bool, wg *sync.WaitGroup) {
+func FSM(elevServerAddr string, addHallOrderCh *nbc.NonBlockingChan, deleteHallOrderCh *nbc.NonBlockingChan,
+	placedHallOrderCh *nbc.NonBlockingChan, completedHallOrderCh *nbc.NonBlockingChan,
+	elevatorStatusCh *nbc.NonBlockingChan, turnOnLightsCh *nbc.NonBlockingChan, wg *sync.WaitGroup) {
 
 	//fmt.Println("[fsm]: starting")
 	elevio.Init(elevServerAddr, N_FLOORS)
@@ -212,10 +213,12 @@ func FSM(elevServerAddr string, addHallOrderCh <-chan OrderEvent, deleteHallOrde
 					}
 				}
 			} else {
-				placedHallOrderCh <- OrderEvent{Floor: buttonEvent.Floor, Button: buttonEvent.Button, LightOn: false}
+				placedHallOrderCh.Send <- OrderEvent{Floor: buttonEvent.Floor, Button: buttonEvent.Button, LightOn: false}
 			}
 
-		case hallOrder := <-addHallOrderCh:
+		case msg, _ := <-addHallOrderCh.Recv:
+			hallOrder := msg.(OrderEvent)
+
 			currElevator.Orders[hallOrder.Floor][hallOrder.Button] = true
 			elevio.SetButtonLamp(hallOrder.Button, hallOrder.Floor, hallOrder.LightOn)
 			//fmt.Println("[fsm]: Hall order added and lights turned on if requested")
@@ -242,8 +245,8 @@ func FSM(elevServerAddr string, addHallOrderCh <-chan OrderEvent, deleteHallOrde
 				updateElevatorDirection(&currElevator)
 			}
 
-		case hallOrder := <-deleteHallOrderCh:
-			//fmt.Printf("[fsm]: Delete order %+v\n", hallOrder)
+		case msg, _ := <-deleteHallOrderCh.Recv:
+			hallOrder := msg.(OrderEvent)
 
 			currElevator.Orders[hallOrder.Floor][hallOrder.Button] = false
 			elevio.SetButtonLamp(hallOrder.Button, hallOrder.Floor, false)
@@ -275,7 +278,9 @@ func FSM(elevServerAddr string, addHallOrderCh <-chan OrderEvent, deleteHallOrde
 				setStateToDrive(&currElevator)
 			}
 
-		case turnOnLights := <-turnOnLightsCh:
+		case msg, _ := <-turnOnLightsCh.Recv:
+			turnOnLights := msg.([N_FLOORS][N_BUTTONS]bool)
+
 			for floor := 0; floor < N_FLOORS; floor++ {
 				for button := 0; button < N_BUTTONS-1; button++ { // note ignoring cab call lights
 					if !(floor == N_FLOORS-1 && elevio.ButtonType(button) == elevio.BT_HallUp) &&
@@ -302,12 +307,12 @@ func FSM(elevServerAddr string, addHallOrderCh <-chan OrderEvent, deleteHallOrde
 			}
 			if len(completedHallOrderSlice) > 0 {
 				fmt.Println("[fsm]: writing completing orders")
-				completedHallOrderCh <- completedHallOrderSlice
+				completedHallOrderCh.Send <- completedHallOrderSlice
 				fmt.Println("[fsm]: completing done")
 			}
 			// TODO: fix deadlock right here!
 			fmt.Println("[fsm]: writing to status channel")
-			elevatorStatusCh <- currElevator
+			elevatorStatusCh.Send <- currElevator
 			fmt.Println("[fsm]: status channel done")
 			prevElevator = currElevator
 		}
