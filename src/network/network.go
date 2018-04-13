@@ -30,7 +30,7 @@ func Launch(thisID string,
 	allElevatorsHeartbeatCh chan<- []msgs.Heartbeat,
 	thisTakeOrderCh chan<- msgs.TakeOrderMsg,
 	safeOrderCh chan<- msgs.SafeOrderMsg,
-	orderCompletedOtherElevCh chan<- msgs.Order,
+	completedOrderOtherElevCh chan<- msgs.Order,
 	/* sync */
 	wg *sync.WaitGroup) {
 
@@ -59,7 +59,7 @@ func Launch(thisID string,
 	recievedOrders := make(map[int]msgs.Order)    // list of all placed orders to/from all elevators
 	placeUnackedOrders := make(map[int]time.Time) // time is time when added
 	takeUnackedOrders := make(map[int]time.Time)  // time is time when added
-	ongoingOrders := make(map[int]time.Time)      // time is time when added
+	allOngoingOrders := make(map[int]time.Time)   // time is time when added
 
 	// Wait until all modules are initialized
 	wg.Done()
@@ -120,6 +120,7 @@ func Launch(thisID string,
 				thisTakeOrderCh <- msg
 
 				ack := msgs.TakeOrderAck{SenderID: thisID, ReceiverID: msg.SenderID, Order: msg.Order}
+
 				takeOrderAckSendCh <- ack
 			}
 
@@ -130,7 +131,7 @@ func Launch(thisID string,
 			}
 
 			// contains all ongoing orders from all elevators
-			ongoingOrders[msg.Order.ID] = time.Now()
+			allOngoingOrders[msg.Order.ID] = time.Now()
 
 		case peerUpdate := <-peerUpdateCh:
 			if len(peerUpdate.Lost) > 0 {
@@ -147,35 +148,36 @@ func Launch(thisID string,
 				fmt.Println("[peerUpdateCh]: New: ", peerUpdate.New)
 			}
 
-			//fmt.Println("[network]: writing to allElevatorsHeartbeatCh")
+			fmt.Println("[network]: allElevatorsHeartbeatCh write")
 			allElevatorsHeartbeatCh <- peerUpdate.Peers
-			//fmt.Println("[network]: allElevatorsHeartbeatCh done")
+			fmt.Println("[network]: allElevatorsHeartbeatCh done")
 
 		case order := <-completedOrderCh:
 			fmt.Println("[orderCompletedCh]: ", order)
-			delete(ongoingOrders, order.ID)
+			delete(allOngoingOrders, order.ID)
 			delete(recievedOrders, order.ID)
 			completeOrderSendCh <- msgs.CompleteOrderMsg{Order: order}
 
 		case msg := <-completeOrderRecvCh:
-			if _, exists := ongoingOrders[msg.Order.ID]; exists {
-				fmt.Println("[orderCompletedRecvCh]: ", msg.Order)
-				delete(ongoingOrders, msg.Order.ID)
-				delete(recievedOrders, msg.Order.ID)
+			//if _, exists := allOngoingOrders[msg.Order.ID]; exists {
+			fmt.Println("[orderCompletedRecvCh]: ", msg.Order)
+			delete(allOngoingOrders, msg.Order.ID)
+			delete(recievedOrders, msg.Order.ID)
 
-				if msg.SenderID != thisID {
-					// TODO: send to order handler
-					orderCompletedOtherElevCh <- msg.Order
-				}
+			if msg.SenderID != thisID {
+				// TODO: send to order handler
+				completedOrderOtherElevCh <- msg.Order
 			}
+			//}
 
 		case heartbeat := <-thisElevatorHeartbeatCh:
 			// heartbeat may lacks thisID
 			heartbeat.SenderID = thisID
+
 			peerStatusSendCh <- heartbeat
 
-		case <-time.After(1 * time.Second):
-			//fmt.Println("[network]: running")
+		case <-time.After(15 * time.Second):
+			fmt.Println("[network]: running")
 		}
 
 		// actions that happen on every update
@@ -192,23 +194,28 @@ func Launch(thisID string,
 		for orderID, t := range takeUnackedOrders {
 			if time.Now().Sub(t) > giveupAckwaitTimeout {
 				//fmt.Printf("[timeout]: take ack for %v\n", orderID)
-				msg := msgs.TakeOrderMsg{SenderID: thisID, ReceiverID: thisID,
-					Order: recievedOrders[orderID]}
+				//msg := msgs.TakeOrderMsg{SenderID: thisID, ReceiverID: thisID,
+				//	Order: recievedOrders[orderID]}
 
-				thisTakeOrderCh <- msg
+				//fmt.Println("[net-timeout]: unack write")
+				//thisTakeOrderCh <- msg
+				//fmt.Println("[net-timeout]: unack done")
 
 				delete(takeUnackedOrders, orderID)
 			}
 		}
 
-		for orderID, t := range ongoingOrders {
+		for orderID, t := range allOngoingOrders {
 			if time.Now().Sub(t) > 30*time.Second {
-				//fmt.Printf("[timeout]: complete not recieved for %v\n\t%v\n", orderID, ongoingOrders)
+				//fmt.Printf("[timeout]: complete not recieved for %v\n\t%v\n", orderID, allOngoingOrders)
 
-				msg := msgs.TakeOrderMsg{SenderID: thisID, ReceiverID: thisID,
-					Order: recievedOrders[orderID]} // TODO: get information to fill out order floor etc. elevator behaviour shouldn't need this
-				thisTakeOrderCh <- msg
-				delete(ongoingOrders, orderID)
+				//msg := msgs.TakeOrderMsg{SenderID: thisID, ReceiverID: thisID,
+				//	Order: recievedOrders[orderID]} // TODO: get information to fill out order floor etc. elevator behaviour shouldn't need this
+
+				//fmt.Println("[net-timeout]: uncomp write")
+				//thisTakeOrderCh <- msg
+				//fmt.Println("[net-timeout]: uncomp done")
+				delete(allOngoingOrders, orderID)
 				delete(recievedOrders, orderID)
 			}
 		}

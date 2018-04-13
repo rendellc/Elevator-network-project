@@ -28,7 +28,7 @@ type OrderEvent struct {
 	LightOn bool
 }
 
-const N_FLOORS = 4 //import
+const N_FLOORS = 4
 const N_BUTTONS = 3
 const TRAVEL_TIME = 2.5
 const DOOR_OPEN_TIME = 3.0
@@ -37,7 +37,6 @@ var doorTimer = time.NewTimer(DOOR_OPEN_TIME * time.Second)
 
 func initializeState(elev *Elevator, floorSensorCh <-chan int) {
 	// Add timer? After timer goes out, then drive down.
-	////fmt.Println("Initializing")
 	elevio.SetMotorDirection(elevio.MD_Down)
 	elev.Floor = <-floorSensorCh
 	elev.Dir = elevio.MD_Stop
@@ -188,7 +187,6 @@ func FSM(elevServerAddr string, addHallOrderCh <-chan OrderEvent, deleteHallOrde
 
 	//elevatorStatusCh <- currElevator
 	for {
-		fmt.Println("[fsm]: running")
 		select {
 		case buttonEvent := <-buttonCh:
 			if buttonEvent.Button == elevio.BT_Cab {
@@ -214,8 +212,7 @@ func FSM(elevServerAddr string, addHallOrderCh <-chan OrderEvent, deleteHallOrde
 					}
 				}
 			} else {
-				////fmt.Println("Button Event: Hall order")
-				placedHallOrderCh <- OrderEvent{buttonEvent.Floor, buttonEvent.Button, false}
+				placedHallOrderCh <- OrderEvent{Floor: buttonEvent.Floor, Button: buttonEvent.Button, LightOn: false}
 			}
 
 		case hallOrder := <-addHallOrderCh:
@@ -232,7 +229,6 @@ func FSM(elevServerAddr string, addHallOrderCh <-chan OrderEvent, deleteHallOrde
 				} else {
 					updateElevatorDirection(&currElevator)
 					setStateToDrive(&currElevator)
-					////fmt.Println("Elevator begins to move")
 				}
 			case DOOR_OPEN: // a new order -> extend timer, determine direction
 				if elevShouldOpenDoor(currElevator) { //buttonEvent.Floor == last_floor
@@ -242,6 +238,8 @@ func FSM(elevServerAddr string, addHallOrderCh <-chan OrderEvent, deleteHallOrde
 				} else {
 					updateElevatorDirection(&currElevator)
 				}
+			default:
+				updateElevatorDirection(&currElevator)
 			}
 
 		case hallOrder := <-deleteHallOrderCh:
@@ -290,8 +288,8 @@ func FSM(elevServerAddr string, addHallOrderCh <-chan OrderEvent, deleteHallOrde
 
 			//channel for turnOffLights ?
 
-		case <-time.After(1 * time.Second):
-			//fmt.Println("[fsm]: running")
+		case <-time.After(2 * time.Second):
+			fmt.Println("[fsm]: running")
 		}
 		if prevElevator != currElevator {
 			var completedHallOrderSlice []OrderEvent
@@ -303,10 +301,14 @@ func FSM(elevServerAddr string, addHallOrderCh <-chan OrderEvent, deleteHallOrde
 				}
 			}
 			if len(completedHallOrderSlice) > 0 {
-				fmt.Println("[fsm]: completing orders")
+				fmt.Println("[fsm]: writing completing orders")
 				completedHallOrderCh <- completedHallOrderSlice
+				fmt.Println("[fsm]: completing done")
 			}
+			// TODO: fix deadlock right here!
+			fmt.Println("[fsm]: writing to status channel")
 			elevatorStatusCh <- currElevator
+			fmt.Println("[fsm]: status channel done")
 			prevElevator = currElevator
 		}
 	}
