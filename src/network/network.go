@@ -71,10 +71,6 @@ func Launch(thisID string,
 		select {
 		case msg := <-placedOrderRecvCh:
 			// store order
-			if _, exists := recievedOrders[msg.Order.ID]; exists {
-				fmt.Printf("[placedOrderRecvCh]: Warning, order id %v already exists, new order ignored\n", msg.Order.ID)
-				break
-			}
 			recievedOrders[msg.Order.ID] = msg.Order
 
 			if msg.SenderID != thisID { // ignore internal msgs
@@ -90,9 +86,6 @@ func Launch(thisID string,
 		case msg, _ := <-placedOrderCh.Recv:
 			order := msg.(msgs.Order)
 			// This node has sent out an order. Needs to listen for acks
-			if ackwait, exists := placeUnackedOrders[order.ID]; exists {
-				fmt.Printf("[placedOrderRecvCh]: Warning, ack wait id %v already exists %v\n", order.ID, time.Now().Sub(ackwait))
-			}
 			placeUnackedOrders[order.ID] = time.Now()
 
 			placedOrderSendCh <- msgs.PlacedOrderMsg{SenderID: thisID, Order: order}
@@ -129,7 +122,7 @@ func Launch(thisID string,
 
 		case msg := <-takeOrderAckRecvCh:
 			if msg.ReceiverID == thisID {
-				fmt.Printf("[takeOrderAckRecvCh]: Recieved ack: %v\n", msg)
+				fmt.Printf("[network]: Recieved ack: %v\n", msg)
 				delete(takeUnackedOrders, msg.Order.ID)
 			}
 
@@ -149,22 +142,21 @@ func Launch(thisID string,
 
 			if len(peerUpdate.New) > 0 {
 				fmt.Println("[peerUpdateCh]: New: ", peerUpdate.New)
+				// TODO: special action?
 			}
 
-			fmt.Println("[network]: allElevatorsHeartbeatCh write")
 			allElevatorsHeartbeatCh.Send <- peerUpdate.Peers
-			fmt.Println("[network]: allElevatorsHeartbeatCh done")
 
 		case msg, _ := <-completedOrderCh.Recv:
 			order := msg.(msgs.Order)
-			fmt.Println("[orderCompletedCh]: ", order)
+			fmt.Println("[network]: %v\n", order)
 			delete(allOngoingOrders, order.ID)
 			delete(recievedOrders, order.ID)
 			completeOrderSendCh <- msgs.CompleteOrderMsg{Order: order}
 
 		case msg := <-completeOrderRecvCh:
 			//if _, exists := allOngoingOrders[msg.Order.ID]; exists {
-			fmt.Println("[orderCompletedRecvCh]: ", msg.Order)
+			fmt.Printf("[network]: %v\n", msg.Order)
 			delete(allOngoingOrders, msg.Order.ID)
 			delete(recievedOrders, msg.Order.ID)
 
@@ -182,7 +174,7 @@ func Launch(thisID string,
 			peerStatusSendCh <- heartbeat
 
 		case <-time.After(15 * time.Second):
-			fmt.Println("[network]: running")
+			//fmt.Println("[network]: running")
 		}
 
 		// actions that happen on every update
@@ -198,29 +190,24 @@ func Launch(thisID string,
 
 		for orderID, t := range takeUnackedOrders {
 			if time.Now().Sub(t) > giveupAckwaitTimeout {
-				//fmt.Printf("[timeout]: take ack for %v\n", orderID)
-				//msg := msgs.TakeOrderMsg{SenderID: thisID, ReceiverID: thisID,
-				//	Order: recievedOrders[orderID]}
+				fmt.Printf("[timeout]: take ack for %v\n", orderID)
+				msg := msgs.TakeOrderMsg{SenderID: thisID, ReceiverID: thisID,
+					Order: recievedOrders[orderID]}
 
-				//fmt.Println("[net-timeout]: unack write")
-				//thisTakeOrderCh <- msg
-				//fmt.Println("[net-timeout]: unack done")
-
+				thisTakeOrderCh.Send <- msg
 				delete(takeUnackedOrders, orderID)
 			}
 		}
 
 		for orderID, t := range allOngoingOrders {
-			if time.Now().Sub(t) > 30*time.Second {
-				//fmt.Printf("[timeout]: complete not recieved for %v\n\t%v\n", orderID, allOngoingOrders)
+			if time.Now().Sub(t) > 45*time.Second {
+				fmt.Printf("[timeout]: complete not recieved for %v\n\t%v\n", orderID, allOngoingOrders)
 
-				//msg := msgs.TakeOrderMsg{SenderID: thisID, ReceiverID: thisID,
-				//	Order: recievedOrders[orderID]} // TODO: get information to fill out order floor etc. elevator behaviour shouldn't need this
+				msg := msgs.TakeOrderMsg{SenderID: thisID, ReceiverID: thisID,
+					Order: recievedOrders[orderID]} // TODO: get information to fill out order floor etc. elevator behaviour shouldn't need this
 
-				//fmt.Println("[net-timeout]: uncomp write")
-				//thisTakeOrderCh <- msg
-				//fmt.Println("[net-timeout]: uncomp done")
-				delete(allOngoingOrders, orderID)
+				thisTakeOrderCh.Send <- msg
+				//delete(allOngoingOrders, orderID)
 				delete(recievedOrders, orderID)
 			}
 		}

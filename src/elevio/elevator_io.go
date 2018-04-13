@@ -53,7 +53,7 @@ func (b ButtonType) String() string {
 	case BT_HallDown:
 		return "BtnHall↓"
 	case BT_Cab:
-		return "BtnCab🚕"
+		return "BtnCab🚕 "
 	}
 	return "-invalid_button_event"
 }

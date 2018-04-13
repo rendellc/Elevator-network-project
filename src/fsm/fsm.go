@@ -294,7 +294,7 @@ func FSM(elevServerAddr string, addHallOrderCh *nbc.NonBlockingChan, deleteHallO
 			//channel for turnOffLights ?
 
 		case <-time.After(2 * time.Second):
-			fmt.Println("[fsm]: running")
+			//fmt.Println("[fsm]: running")
 		}
 		if prevElevator != currElevator {
 			var completedHallOrderSlice []OrderEvent
@@ -306,14 +306,14 @@ func FSM(elevServerAddr string, addHallOrderCh *nbc.NonBlockingChan, deleteHallO
 				}
 			}
 			if len(completedHallOrderSlice) > 0 {
-				fmt.Println("[fsm]: writing completing orders")
+				//fmt.Println("[fsm]: writing completing orders")
 				completedHallOrderCh.Send <- completedHallOrderSlice
-				fmt.Println("[fsm]: completing done")
+				//fmt.Println("[fsm]: completing done")
 			}
 			// TODO: fix deadlock right here!
-			fmt.Println("[fsm]: writing to status channel")
+			//fmt.Println("[fsm]: writing to status channel")
 			elevatorStatusCh.Send <- currElevator
-			fmt.Println("[fsm]: status channel done")
+			//fmt.Println("[fsm]: status channel done")
 			prevElevator = currElevator
 		}
 	}
@@ -349,11 +349,9 @@ func EstimatedCompletionTime(elev Elevator, orderEvent OrderEvent) float64 { // 
 				////fmt.Println("Duration until completion %f", duration)
 				return duration
 			}
-			fmt.Printf(".")
 		}
 		elev.Floor += int(elev.Dir)
 		duration += TRAVEL_TIME
 		//////fmt.Println("Duration until now %f", duration)
-		fmt.Printf(".")
 	}
 }

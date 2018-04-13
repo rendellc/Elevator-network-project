@@ -53,16 +53,20 @@ func OrderHandler(thisID string,
 		case msg, _ := <-thisTakeOrderCh.Recv:
 			order := msg.(msgs.TakeOrderMsg)
 			// TODO: Verify that only other elevators orders come in here. Or else lights will be wrong
+
+			if order.SenderID == thisID {
+				fmt.Printf("[orderhandler]: Warning: thisTakeOrder from self: %v\n", order)
+				// TODO: Lights may be wrong
+				addHallOrderCh.Send <- fsm.OrderEvent{Floor: order.Order.Floor, Button: order.Order.Type, LightOn: true}
+			} else {
+				addHallOrderCh.Send <- fsm.OrderEvent{Floor: order.Order.Floor, Button: order.Order.Type, LightOn: false}
+			}
 			takenOrders[order.Order.ID] = order.Order
-			fmt.Println("[orderhandler]: writing to addHallOrder (thisTake)")
-			addHallOrderCh.Send <- fsm.OrderEvent{Floor: order.Order.Floor, Button: order.Order.Type, LightOn: false}
-			fmt.Println("[orderhandler]: addHallOrder (thisTake) done")
 
 		case msg, _ := <-safeOrderCh.Recv:
 			order := msg.(msgs.SafeOrderMsg)
 
 			if order.ReceiverID == thisID {
-				fmt.Printf("[safeOrderCh]: %v\n", order)
 				if order, exists := placedOrders[order.Order.ID]; exists {
 					acceptedOrders[order.ID] = order
 
@@ -81,20 +85,19 @@ func OrderHandler(thisID string,
 					// broadcast
 					fmt.Printf("[orderHandler]: elevator %v should take order %v\n", bestID, order.ID)
 					takeOrderMsg := msgs.TakeOrderMsg{SenderID: thisID, ReceiverID: bestID, Order: order}
-					fmt.Println("[orderhandler]: writing to broadcast (best)")
+					//fmt.Println("[orderhandler]: writing to broadcast (best)")
 					broadcastTakeOrderCh.Send <- takeOrderMsg
-					fmt.Println("[orderhandler]: broadcast (best) done")
+					//fmt.Println("[orderhandler]: broadcast (best) done")
 
 					if bestID == thisID {
 						takenOrders[order.ID] = order
-						fmt.Println("[orderhandler]: writing to addHallOrder (best)")
 						addHallOrderCh.Send <- fsm.OrderEvent{Floor: order.Floor,
 							Button:  order.Type,
 							LightOn: true}
-						fmt.Println("[orderhandler]: addHallOrder (best) done")
 					}
 				} else {
 					fmt.Println("[orderHandler]: safeOrderCh: order didn't exist")
+					// TODO: error handling
 				}
 			}
 
@@ -107,16 +110,16 @@ func OrderHandler(thisID string,
 				// Add taken orders
 				for orderID, order := range lastHeartbeat.TakenOrders {
 					takenOrders[orderID] = order
-					fmt.Println("[orderhandler]: writing to addHallOrder (take)")
+					//fmt.Println("[orderhandler]: writing to addHallOrder (take)")
 					addHallOrderCh.Send <- fsm.OrderEvent{Floor: order.Floor, Button: order.Type, LightOn: false}
-					fmt.Println("[orderhandler]: addHallOrder (take) done")
+					//fmt.Println("[orderhandler]: addHallOrder (take) done")
 				}
 				// Add accepted orders
 				for orderID, order := range lastHeartbeat.AcceptedOrders {
 					acceptedOrders[orderID] = order
-					fmt.Println("[orderhandler]: writing to addHallOrder (acc)")
+					//fmt.Println("[orderhandler]: writing to addHallOrder (acc)")
 					addHallOrderCh.Send <- fsm.OrderEvent{Floor: order.Floor, Button: order.Type, LightOn: true}
-					fmt.Println("[orderhandler]: addHallOrder (acc) done")
+					//fmt.Println("[orderhandler]: addHallOrder (acc) done")
 				}
 				delete(elevators, lastHeartbeat.SenderID) // Not sure about this ? can be handled by heartbeat channel
 			}
@@ -128,12 +131,13 @@ func OrderHandler(thisID string,
 			order := msgs.Order{ID: orderID, Floor: buttonEvent.Floor, Type: buttonEvent.Button}
 			placedOrders[orderID] = order
 
-			fmt.Println("[orderhandler]: writing to placedOrder")
+			//fmt.Println("[orderhandler]: writing to placedOrder")
 			placedOrderCh.Send <- order
-			fmt.Println("[orderhandler]: placedOrder done")
+			//fmt.Println("[orderhandler]: placedOrder done")
 
 		case msg, _ := <-completedOrderOtherElevCh.Recv:
 			completedOrder := msg.(msgs.Order)
+
 			for _, order := range placedOrders {
 				if order.Floor == completedOrder.Floor &&
 					order.Type == completedOrder.Type {
@@ -152,26 +156,30 @@ func OrderHandler(thisID string,
 					delete(takenOrders, order.ID)
 				}
 			}
-			fmt.Println("[orderhandler]: writing to deleteHallOrder")
+
 			deleteHallOrderCh.Send <- fsm.OrderEvent{Floor: completedOrder.Floor, Button: completedOrder.Type}
-			fmt.Println("[orderhandler]: deleteHallOrder done")
 
 		case msg, _ := <-completedOrderThisElevCh.Recv:
 			completedOrders := msg.([]fsm.OrderEvent)
+
 			// find and remove all equivalent placedOrders
 			for _, completedOrder := range completedOrders {
 				orderID := createOrderID(completedOrder.Floor, completedOrder.Button, thisID, fsm.N_FLOORS, 256)
 				fmt.Printf("[orderHandler]: completed order %v\n", orderID)
 				// broadcast to network that order is completed
-				if order, exists := takenOrders[orderID]; exists {
-					completedOrderCh.Send <- order
-				} else {
+				//if order, exists := takenOrders[orderID]; exists {
 
-					// TODO: this triggers for all cab calls
-					if completedOrder.Button != elevio.BT_Cab {
-						fmt.Println("[orderHandler]: ERROR: completed non-taken order")
-					}
-				}
+				// TODO: the orderID calculation will only be correct for orders from this elevator
+				// an order taken from another elevator may need its original orderID in order to be transmitted properly
+
+				completedOrderCh.Send <- msgs.Order{ID: orderID, Floor: completedOrder.Floor, Type: completedOrder.Button}
+				//} else {
+
+				//	// TODO: this triggers for all cab calls
+				//	if completedOrder.Button != elevio.BT_Cab {
+				//		fmt.Println("[orderHandler]: warn: completed non-taken order")
+				//	}
+				//}
 				//delete order
 				delete(takenOrders, orderID)
 				delete(acceptedOrders, orderID)
@@ -186,14 +194,13 @@ func OrderHandler(thisID string,
 				AcceptedOrders: acceptedOrders,
 				TakenOrders:    takenOrders}
 
-			fmt.Println("[orderhandler]: writing to thisElevatorHeartbeatCh")
 			thisElevatorHeartbeatCh.Send <- heartbeat
-			fmt.Println("[orderhandler]: thisElevatorHeartbeatCh done")
 
 		case msg, _ := <-allElevatorsHeartbeatCh.Recv:
 			allElevatorsHeartbeat := msg.([]msgs.Heartbeat)
 
 			var turnOnLights [fsm.N_FLOORS][fsm.N_BUTTONS]bool
+			// lights from other elevators
 			for _, elevatorHeartbeat := range allElevatorsHeartbeat {
 				elevators[elevatorHeartbeat.SenderID] = elevatorHeartbeat
 				if elevatorHeartbeat.SenderID != thisID {
@@ -203,22 +210,25 @@ func OrderHandler(thisID string,
 				}
 			}
 
+			// lights from this elevator
+			for _, acceptedOrder := range acceptedOrders {
+				turnOnLights[acceptedOrder.Floor][acceptedOrder.Type] = true
+			}
+
 			if len(turnOnLights) > 0 {
-				fmt.Println("[orderhandler]: writing to turnOnLights")
 				turnOnLightsCh.Send <- turnOnLights
-				fmt.Println("[orderhandler]: turnOnLights done")
 			}
 
 			// debug
-			var elevatorIDList []string
-			for id, _ := range elevators {
-				elevatorIDList = append(elevatorIDList, id)
-			}
-			fmt.Printf("[orderHandler]: elevators: %v\n", elevatorIDList)
+
+			//var elevatorIDList []string
+			//for id, _ := range elevators {
+			//	elevatorIDList = append(elevatorIDList, id)
+			//}
+			//fmt.Printf("[orderHandler]: elevators: %v\n", elevatorIDList)
 
 		case <-time.After(15 * time.Second):
 			// an (empty) event every second, avoids some forms of locking
-			//fmt.Println("[orderHandler]: running")
 			var orderList []msgs.Order
 			for orderID, _ := range acceptedOrders {
 				if order, exists := placedOrders[orderID]; !exists {
