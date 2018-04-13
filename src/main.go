@@ -5,7 +5,7 @@ import (
 	"./network"
 	"./orderhandler"
 	"flag"
-	"github.com/hectane/go-nonblockingchan"
+	"./go-nonblockingchan"
 	"math/rand"
 	"sync"
 	"time"

@@ -5,15 +5,14 @@ import (
 	"../fsm"
 	"../msgs"
 	"fmt"
-	"github.com/hectane/go-nonblockingchan"
-	"strconv"
+	"../go-nonblockingchan"
 	"sync"
 	"time"
 )
 
-func createOrderID(floor int, button elevio.ButtonType, elevID string, max_floors int, max_id int) int {
-	elevIDint, _ := strconv.Atoi(elevID)
-	return max_id*(max_floors*int(button)+floor) + elevIDint
+func createOrderID(floor int, button elevio.ButtonType, num_floors int) int {
+	//elevIDint, _ := strconv.Atoi(elevID)
+	return num_floors * int(button) + floor
 }
 
 func OrderHandler(thisID string,
@@ -127,7 +126,7 @@ func OrderHandler(thisID string,
 		case msg, _ := <-placedHallOrderCh.Recv:
 			buttonEvent := msg.(fsm.OrderEvent)
 
-			orderID := createOrderID(buttonEvent.Floor, buttonEvent.Button, thisID, fsm.N_FLOORS, 256)
+			orderID := createOrderID(buttonEvent.Floor, buttonEvent.Button, fsm.N_FLOORS)
 			order := msgs.Order{ID: orderID, Floor: buttonEvent.Floor, Type: buttonEvent.Button}
 			placedOrders[orderID] = order
 
@@ -164,7 +163,7 @@ func OrderHandler(thisID string,
 
 			// find and remove all equivalent placedOrders
 			for _, completedOrder := range completedOrders {
-				orderID := createOrderID(completedOrder.Floor, completedOrder.Button, thisID, fsm.N_FLOORS, 256)
+				orderID := createOrderID(completedOrder.Floor, completedOrder.Button, fsm.N_FLOORS)
 				fmt.Printf("[orderHandler]: completed order %v\n", orderID)
 				// broadcast to network that order is completed
 				//if order, exists := takenOrders[orderID]; exists {

@@ -4,11 +4,14 @@ Git:
     Afterwards: git submodule update --recursive
 
 Build simulator:
+dmd -w -g src/sim_server.d src/timer_event.d -ofSimElevatorServer
 
+Build ElevatorServer
+cargo install --force ttk4145_elevator_server
 
 TODO:
   synchronize lights
- +outsourcing 
+ +outsourcing
   make port determinable from id and automatic discovery of elevators
   simulate package lost
   simulate node temporarily out
