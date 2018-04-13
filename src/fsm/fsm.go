@@ -19,7 +19,7 @@ const (
 type Elevator struct {
 	Floor  int
 	Dir    elevio.MotorDirection
-	Orders [N_FLOORS][N_BUTTONS]bool //type OrderBook map[int]map[int]bool
+	Orders [N_FLOORS][N_BUTTONS]bool
 	Lights [N_FLOORS][N_BUTTONS]bool
 	State  State
 }
@@ -140,6 +140,7 @@ func clearOrder(elev *Elevator, buttonType elevio.ButtonType, completedOrders [N
 		elev.Orders[elev.Floor][buttonType] = false
 		if !simulationMode {
 			elevio.SetButtonLamp(buttonType, elev.Floor, false)
+			elev.Lights[elev.Floor][buttonType] = false
 			completedOrders[elev.Floor][buttonType] = true
 		}
 	}
@@ -169,7 +170,7 @@ func clearOrdersAtFloor(elev *Elevator, completedOrders [N_FLOORS][N_BUTTONS]boo
 
 func FSM(elevServerAddr string, addHallOrderCh *nbc.NonBlockingChan, deleteHallOrderCh *nbc.NonBlockingChan,
 	placedHallOrderCh *nbc.NonBlockingChan, completedHallOrderCh *nbc.NonBlockingChan,
-	elevatorStatusCh *nbc.NonBlockingChan, turnOnLightsCh *nbc.NonBlockingChan, wg *sync.WaitGroup) {
+	elevatorStatusCh *nbc.NonBlockingChan, updateLightsCh *nbc.NonBlockingChan, wg *sync.WaitGroup) {
 
 	//fmt.Println("[fsm]: starting")
 	elevio.Init(elevServerAddr, N_FLOORS)
@@ -205,6 +206,7 @@ func FSM(elevServerAddr string, addHallOrderCh *nbc.NonBlockingChan, deleteHallO
 			if buttonEvent.Button == elevio.BT_Cab {
 				currElevator.Orders[buttonEvent.Floor][buttonEvent.Button] = true
 				elevio.SetButtonLamp(buttonEvent.Button, buttonEvent.Floor, true)
+				currElevator.Lights[buttonEvent.Floor][buttonEvent.Button] = true
 				fmt.Println("[fsm]: Cab order added and lights turned on")
 				//fmt.Println("[fsm]: Estimated completion time: %f", EstimatedCompletionTime(currElevator, OrderEvent{buttonEvent.Floor, buttonEvent.Button, false}))
 				switch currElevator.State {
@@ -231,7 +233,10 @@ func FSM(elevServerAddr string, addHallOrderCh *nbc.NonBlockingChan, deleteHallO
 		case msg, _ := <-addHallOrderCh.Recv:
 			hallOrder := msg.(OrderEvent)
 			currElevator.Orders[hallOrder.Floor][hallOrder.Button] = true
-			elevio.SetButtonLamp(hallOrder.Button, hallOrder.Floor, hallOrder.LightOn)
+			enableLight := hallOrder.LightOn || currElevator.Lights[hallOrder.Floor][hallOrder.Button]
+			elevio.SetButtonLamp(hallOrder.Button, hallOrder.Floor, enableLight)
+			currElevator.Lights[hallOrder.Floor][hallOrder.Button] = enableLight
+
 			//fmt.Println("[fsm]: Estimated completion time: %f", EstimatedCompletionTime(currElevator, hallOrder))
 			switch currElevator.State {
 			case IDLE:
@@ -260,6 +265,7 @@ func FSM(elevServerAddr string, addHallOrderCh *nbc.NonBlockingChan, deleteHallO
 
 			currElevator.Orders[hallOrder.Floor][hallOrder.Button] = false
 			elevio.SetButtonLamp(hallOrder.Button, hallOrder.Floor, false)
+			currElevator.Lights[hallOrder.Floor][hallOrder.Button] = false
 			if currElevator.State == DOOR_OPEN {
 				updateElevatorDirection(&currElevator)
 				completedOrders = clearOrdersAtFloor(&currElevator, completedOrders, false)
@@ -288,15 +294,15 @@ func FSM(elevServerAddr string, addHallOrderCh *nbc.NonBlockingChan, deleteHallO
 				setStateToDrive(&currElevator)
 			}
 
-		case msg, _ := <-turnOnLightsCh.Recv:
-			turnOnLights := msg.([N_FLOORS][N_BUTTONS]bool)
+		case msg, _ := <-updateLightsCh.Recv:
+			updateLights := msg.([N_FLOORS][N_BUTTONS]bool)
 
 			for floor := 0; floor < N_FLOORS; floor++ {
 				for button := 0; button < N_BUTTONS-1; button++ { // note ignoring cab call lights
 					if !(floor == N_FLOORS-1 && elevio.ButtonType(button) == elevio.BT_HallUp) &&
-						!(floor == 0 && elevio.ButtonType(button) == elevio.BT_HallDown) &&
-						turnOnLights[floor][button] {
-						elevio.SetButtonLamp(elevio.ButtonType(button), floor, true)
+						!(floor == 0 && elevio.ButtonType(button) == elevio.BT_HallDown){
+							currElevator.Lights[floor][button] = updateLights[floor][button]
+							elevio.SetButtonLamp(elevio.ButtonType(button), floor, currElevator.Lights[floor][button])
 					}
 				}
 			}

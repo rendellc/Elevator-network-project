@@ -32,7 +32,7 @@ func OrderHandler(thisID string,
 	deleteHallOrderCh *nbc.NonBlockingChan,
 	completedOrderCh *nbc.NonBlockingChan,
 	thisElevatorHeartbeatCh *nbc.NonBlockingChan,
-	turnOnLightsCh *nbc.NonBlockingChan,
+	updateLightsCh *nbc.NonBlockingChan,
 	/* Sync */
 	wg *sync.WaitGroup) {
 
@@ -210,24 +210,24 @@ func OrderHandler(thisID string,
 		case msg, _ := <-allElevatorsHeartbeatCh.Recv:
 			allElevatorsHeartbeat := msg.([]msgs.Heartbeat)
 
-			var turnOnLights [fsm.N_FLOORS][fsm.N_BUTTONS]bool
+			var updateLights [fsm.N_FLOORS][fsm.N_BUTTONS]bool
 			// lights from other elevators
 			for _, elevatorHeartbeat := range allElevatorsHeartbeat {
 				elevators[elevatorHeartbeat.SenderID] = elevatorHeartbeat
 				if elevatorHeartbeat.SenderID != thisID {
 					for _, acceptedOrder := range elevatorHeartbeat.AcceptedOrders {
-						turnOnLights[acceptedOrder.Floor][acceptedOrder.Type] = true
+						updateLights[acceptedOrder.Floor][acceptedOrder.Type] = true
 					}
 				}
 			}
 
 			// lights from this elevator
 			for _, acceptedOrder := range acceptedOrders {
-				turnOnLights[acceptedOrder.Floor][acceptedOrder.Type] = true
+				updateLights[acceptedOrder.Floor][acceptedOrder.Type] = true
 			}
 
-			if len(turnOnLights) > 0 {
-				turnOnLightsCh.Send <- turnOnLights
+			if len(updateLights) > 0 {
+				updateLightsCh.Send <- updateLights
 			}
 
 			// debug
