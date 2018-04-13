@@ -171,13 +171,13 @@ func OrderHandler(thisID string,
 				// TODO: the orderID calculation will only be correct for orders from this elevator
 				// an order taken from another elevator may need its original orderID in order to be transmitted properly
 
-				completedOrderCh.Send <- msgs.Order{ID: orderID, Floor: completedOrder.Floor, Type: completedOrder.Button}
 				//} else {
 
 				//	// TODO: this triggers for all cab calls
-				//	if completedOrder.Button != elevio.BT_Cab {
-				//		fmt.Println("[orderHandler]: warn: completed non-taken order")
-				//	}
+				if completedOrder.Button != elevio.BT_Cab {
+					completedOrderCh.Send <- msgs.Order{ID: orderID, Floor: completedOrder.Floor, Type: completedOrder.Button}
+					//fmt.Println("[orderHandler]: warn: completed non-taken order")
+				}
 				//}
 				//delete order
 				delete(takenOrders, orderID)
@@ -187,11 +187,23 @@ func OrderHandler(thisID string,
 
 		case msg, _ := <-elevatorStatusCh.Recv:
 			elevatorStatus := msg.(fsm.Elevator)
+
+			// make deep copy of accepted and taken orders
+			acceptedOrdersDeepCopy := make(map[int]msgs.Order)
+			for k, v := range acceptedOrders {
+				acceptedOrdersDeepCopy[k] = v
+			}
+
+			takenOrdersDeepCopy := make(map[int]msgs.Order)
+			for k, v := range takenOrders {
+				takenOrdersDeepCopy[k] = v
+			}
+
 			// build heartbeat
 			heartbeat := msgs.Heartbeat{SenderID: thisID,
 				Status:         elevatorStatus,
-				AcceptedOrders: acceptedOrders,
-				TakenOrders:    takenOrders}
+				AcceptedOrders: acceptedOrdersDeepCopy,
+				TakenOrders:    takenOrdersDeepCopy}
 
 			thisElevatorHeartbeatCh.Send <- heartbeat
 
