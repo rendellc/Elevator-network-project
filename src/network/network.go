@@ -149,13 +149,17 @@ func Launch(thisID string,
 
 		case msg, _ := <-completedOrderCh.Recv:
 			order := msg.(msgs.Order)
-			fmt.Println("[network]: %v\n", order)
+			fmt.Printf("[network]: completed order: %v\n", order)
+
+			// forget order
 			delete(allOngoingOrders, order.ID)
+			delete(takeUnackedOrders, order.ID)
+			delete(placeUnackedOrders, order.ID)
 			delete(recievedOrders, order.ID)
 			completeOrderSendCh <- msgs.CompleteOrderMsg{Order: order}
 
 		case msg := <-completeOrderRecvCh:
-			//if _, exists := allOngoingOrders[msg.Order.ID]; exists {
+
 			fmt.Printf("[network]: %v\n", msg.Order)
 			delete(allOngoingOrders, msg.Order.ID)
 			delete(recievedOrders, msg.Order.ID)
@@ -207,7 +211,7 @@ func Launch(thisID string,
 					Order: recievedOrders[orderID]} // TODO: get information to fill out order floor etc. elevator behaviour shouldn't need this
 
 				thisTakeOrderCh.Send <- msg
-				//delete(allOngoingOrders, orderID)
+				delete(allOngoingOrders, orderID)
 				delete(recievedOrders, orderID)
 			}
 		}
