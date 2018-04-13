@@ -10,13 +10,13 @@ Build ElevatorServer
 cargo install --force ttk4145_elevator_server
 
 TODO:
-  synchronize lights
- +outsourcing
   make port determinable from id and automatic discovery of elevators
-  simulate package lost
+  lost connection with ElevatorServer over time. Do we suffer from this?
+  simulate package lost (see cmd in mail from Jesus)
   simulate node temporarily out
   See failure mode 6
-  split up fsm and orderhandler in PseudoOrderHandlerAndFsm
+  Reduce timeOut wait time
+
 
 Tests:
 
@@ -28,4 +28,8 @@ Tests:
     5.- Turning off elevator power, disconnecting motor wires
     6.- Disregarded orders:
           If placed order is disregarded more than X times after T seconds
-          (no acks received), then the elevator takes this order.
+          (no acks received), then this elevator takes order.
+
+DONE:
+  synchronize lights
+  outsourcing

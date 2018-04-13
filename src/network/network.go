@@ -11,13 +11,17 @@ import (
 	"time"
 )
 
+type StampedOrder struct {
+	StampTime time.Time
+	Order msgs.Order
+}
+
 var rnd = rand.New(rand.NewSource(time.Now().UnixNano()))
 
-//const server_ip = "129.241.187.38"
 const commonPort = 20010
 const timeout = 1 * time.Second
-const giveupAckwaitTimeout = 5 * time.Second
-const N_FLOORS = 4 //import
+const placedAckwaitTimeout = 100 * time.Millisecond
+const N_FLOORS = 4
 const N_BUTTONS = 3
 
 func Launch(thisID string,
@@ -58,9 +62,11 @@ func Launch(thisID string,
 
 	// bookkeeping variables
 	recievedOrders := make(map[int]msgs.Order)    // list of all placed orders to/from all elevators
-	placeUnackedOrders := make(map[int]time.Time) // time is time when added
-	takeUnackedOrders := make(map[int]time.Time)  // time is time when added
-	allOngoingOrders := make(map[int]time.Time)   // time is time when added
+	placeUnackedOrders := make(map[int]StampedOrder) // time is time when added
+	takeUnackedOrders := make(map[int]StampedOrder)  // time is time when added
+	allOngoingOrders := make(map[int]StampedOrder)   // time is time when added
+
+	placedTryAgainCount := make(map[int]int)
 
 	// Wait until all modules are initialized
 	wg.Done()
@@ -86,7 +92,7 @@ func Launch(thisID string,
 		case msg, _ := <-placedOrderCh.Recv:
 			order := msg.(msgs.Order)
 			// This node has sent out an order. Needs to listen for acks
-			placeUnackedOrders[order.ID] = time.Now()
+			placeUnackedOrders[order.ID] = StampedOrder{StampTime: time.Now(), Order: order}
 
 			placedOrderSendCh <- msgs.PlacedOrderMsg{SenderID: thisID, Order: order}
 
@@ -109,7 +115,8 @@ func Launch(thisID string,
 		case msg, _ := <-broadcastTakeOrderCh.Recv:
 			takeOrderMsg := msg.(msgs.TakeOrderMsg)
 			takeOrderSendCh <- takeOrderMsg
-			takeUnackedOrders[takeOrderMsg.Order.ID] = time.Now()
+			takeUnackedOrders[takeOrderMsg.Order.ID] = StampedOrder{StampTime: time.Now(),
+				Order: takeOrderMsg.Order}
 
 		case msg := <-takeOrderRecvCh:
 			if msg.ReceiverID == thisID {
@@ -127,7 +134,8 @@ func Launch(thisID string,
 			}
 
 			// contains all ongoing orders from all elevators
-			allOngoingOrders[msg.Order.ID] = time.Now()
+			allOngoingOrders[msg.Order.ID] = StampedOrder{StampTime: time.Now(),
+				Order: msg.Order}
 
 		case peerUpdate := <-peerUpdateCh:
 			if len(peerUpdate.Lost) > 0 {
@@ -174,44 +182,54 @@ func Launch(thisID string,
 			heartbeat.SenderID = thisID
 
 			peerStatusSendCh <- heartbeat
-
-		case <-time.After(15 * time.Second):
+		case <-time.After(100 * time.Millisecond):
 			//fmt.Println("[network]: running")
 		}
 
 		// actions that happen on every update
-		for orderID, t := range placeUnackedOrders {
-			if time.Now().Sub(t) > giveupAckwaitTimeout {
-				fmt.Printf("[timeout]: place ack for %v\n", orderID)
+		for orderID, stampedOrder := range placeUnackedOrders {
+			if time.Now().Sub(stampedOrder.StampTime) > placedAckwaitTimeout {
 
-				// TODO: should accept order if this happens many times!
-
-				delete(placeUnackedOrders, orderID)
+				// Try again
+				if placedTryAgainCount[orderID] < 3 {
+					placedTryAgainCount[orderID] += 1
+					placeUnackedOrders[orderID] = StampedOrder{StampTime: time.Now(), // update stamp time
+						Order: stampedOrder.Order}
+					placedOrderSendCh <- msgs.PlacedOrderMsg{SenderID: thisID,
+						Order: stampedOrder.Order}
+				} else {
+					fmt.Printf("[network]: ack timeout on order %v\n", orderID)
+					thisTakeOrderCh.Send <- msgs.TakeOrderMsg{SenderID: thisID,
+						ReceiverID: thisID,
+						Order: stampedOrder.Order}
+					delete(placedTryAgainCount, orderID)
+					delete(placeUnackedOrders, orderID)
+				}
 			}
 		}
 
-		for orderID, t := range takeUnackedOrders {
-			if time.Now().Sub(t) > giveupAckwaitTimeout {
-				fmt.Printf("[timeout]: take ack for %v\n", orderID)
-				msg := msgs.TakeOrderMsg{SenderID: thisID, ReceiverID: thisID,
-					Order: recievedOrders[orderID]}
+	for orderID, stampedOrder := range takeUnackedOrders {
+		if time.Now().Sub(stampedOrder.StampTime) > placedAckwaitTimeout {
+			fmt.Printf("[timeout]: take ack for %v\n", orderID)
+			msg := msgs.TakeOrderMsg{SenderID: thisID, ReceiverID: thisID,
+				Order: recievedOrders[orderID]}
 
-				thisTakeOrderCh.Send <- msg
-				delete(takeUnackedOrders, orderID)
-			}
-		}
-
-		for orderID, t := range allOngoingOrders {
-			if time.Now().Sub(t) > 30*time.Second {
-				fmt.Printf("[timeout]: complete not recieved for %v\n\t%v\n", orderID, allOngoingOrders)
-
-				msg := msgs.TakeOrderMsg{SenderID: thisID, ReceiverID: thisID,
-					Order: recievedOrders[orderID]} // TODO: get information to fill out order floor etc. elevator behaviour shouldn't need this
-
-				thisTakeOrderCh.Send <- msg
-				delete(allOngoingOrders, orderID)
-				delete(recievedOrders, orderID)
-			}
+			thisTakeOrderCh.Send <- msg
+			delete(takeUnackedOrders, orderID)
 		}
 	}
+
+	for orderID, stampedOrder := range allOngoingOrders {
+		if time.Now().Sub(stampedOrder.StampTime) > 30*time.Second {
+			fmt.Printf("[timeout]: complete not recieved for %v\n\t%v\n", orderID, allOngoingOrders)
+
+			msg := msgs.TakeOrderMsg{SenderID: thisID, ReceiverID: thisID,
+				Order: recievedOrders[orderID]} // TODO: get information to fill out order floor etc. elevator behaviour shouldn't need this
+
+			thisTakeOrderCh.Send <- msg
+			delete(allOngoingOrders, orderID)
+			delete(recievedOrders, orderID)
+		}
+	}
+}
 }
