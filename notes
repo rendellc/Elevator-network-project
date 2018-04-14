@@ -10,7 +10,7 @@ Build ElevatorServer
 cargo install --force ttk4145_elevator_server
 
 Package loss:
-iptables -A INPUT -i eno1 -m statistic --mode random --probability 0.25 -j DROP
+iptables -A INPUT -i eno1 -m statistic -p udp --mode random --probability 0.25 -j DROP
 
 TODO:
   lights sync after door closes in some cases
