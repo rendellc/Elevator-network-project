@@ -199,7 +199,7 @@ func Launch(thisID string, commonPort int,
 
 		case <-time.After(1000 * time.Millisecond):
 			// make sure that below actions are processed sufficiently often
-			fmt.Printf("[network]: all: %+v\n", allOrders)
+			//fmt.Printf("[network]: all: %+v\n", allOrders)
 		}
 
 		// actions that happen on every update
