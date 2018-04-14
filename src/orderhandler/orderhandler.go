@@ -3,16 +3,16 @@ package orderhandler
 import (
 	"../elevio"
 	"../fsm"
+	"../go-nonblockingchan"
 	"../msgs"
 	"fmt"
-	"../go-nonblockingchan"
 	"sync"
 	"time"
 )
 
 func createOrderID(floor int, button elevio.ButtonType, num_floors int) int {
 	//elevIDint, _ := strconv.Atoi(elevID)
-	return num_floors * int(button) + floor
+	return num_floors*int(button) + floor
 }
 
 func OrderHandler(thisID string,

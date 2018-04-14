@@ -1,18 +1,21 @@
 package main
 
 import (
+	"./comhandler"
 	"./fsm"
-	"./network"
+	"./go-nonblockingchan"
 	"./orderhandler"
 	"flag"
-	"./go-nonblockingchan"
+	"fmt"
 	"math/rand"
+	"os"
 	"sync"
 	"time"
 )
 
 var id_ptr = flag.String("id", "noid", "ID for node")
 var elevServerAddr_ptr = flag.String("addr", "noid", "Port for node")
+var commonPort_ptr = flag.Int("bport", 20010, "Port for all broadcasts")
 
 var rnd = rand.New(rand.NewSource(time.Now().UnixNano()))
 
@@ -23,6 +26,11 @@ const N_BUTTONS = 3
 
 func main() {
 	flag.Parse()
+
+	if *id_ptr == "noid" {
+		fmt.Println("Specify id")
+		os.Exit(1)
+	}
 
 	// Three modules in wait group
 	wg.Add(3)
@@ -56,7 +64,7 @@ func main() {
 	// FSM -> Network
 	// (none)
 
-	go network.Launch(*id_ptr,
+	go comhandler.Launch(*id_ptr, *commonPort_ptr,
 		thisElevatorHeartbeatCh, downedElevatorsCh, placedOrderCh,
 		broadcastTakeOrderCh, completedOrderCh,
 		allElevatorsHeartbeatCh, thisTakeOrderCh, safeOrderCh,

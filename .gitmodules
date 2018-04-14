@@ -7,3 +7,6 @@
 [submodule "Simulator-v2"]
 	path = Simulator-v2
 	url = https://github.com/TTK4145/Simulator-v2
+[submodule "src/go-nonblockingchan"]
+	path = src/go-nonblockingchan
+	url = https://github.com/hectane/go-nonblockingchan
