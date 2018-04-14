@@ -2,8 +2,8 @@ package fsm
 
 import (
 	"../elevio"
-	"fmt"
 	"../go-nonblockingchan"
+	"fmt"
 	"sync"
 	"time"
 )
@@ -135,7 +135,7 @@ func updateElevatorDirection(elev *Elevator) {
 	}
 }
 
-func clearOrder(elev *Elevator, buttonType elevio.ButtonType, completedOrders [N_FLOORS][N_BUTTONS]bool , simulationMode bool) [N_FLOORS][N_BUTTONS]bool {
+func clearOrder(elev *Elevator, buttonType elevio.ButtonType, completedOrders [N_FLOORS][N_BUTTONS]bool, simulationMode bool) [N_FLOORS][N_BUTTONS]bool {
 	if elev.Orders[elev.Floor][buttonType] {
 		elev.Orders[elev.Floor][buttonType] = false
 		if !simulationMode {
@@ -147,7 +147,7 @@ func clearOrder(elev *Elevator, buttonType elevio.ButtonType, completedOrders [N
 	return completedOrders
 }
 
-func clearOrdersAtFloor(elev *Elevator, completedOrders [N_FLOORS][N_BUTTONS]bool , simulationMode bool) [N_FLOORS][N_BUTTONS]bool {
+func clearOrdersAtFloor(elev *Elevator, completedOrders [N_FLOORS][N_BUTTONS]bool, simulationMode bool) [N_FLOORS][N_BUTTONS]bool {
 	if elev.Dir == elevio.MD_Up {
 		completedOrders = clearOrder(elev, elevio.BT_HallUp, completedOrders, simulationMode)
 		completedOrders = clearOrder(elev, elevio.BT_Cab, completedOrders, simulationMode)
@@ -170,7 +170,7 @@ func clearOrdersAtFloor(elev *Elevator, completedOrders [N_FLOORS][N_BUTTONS]boo
 
 func FSM(elevServerAddr string, addHallOrderCh *nbc.NonBlockingChan, deleteHallOrderCh *nbc.NonBlockingChan,
 	placedHallOrderCh *nbc.NonBlockingChan, completedHallOrderCh *nbc.NonBlockingChan,
-	elevatorStatusCh *nbc.NonBlockingChan, updateLightsCh *nbc.NonBlockingChan, wg *sync.WaitGroup) {
+	elevatorStatusCh *nbc.NonBlockingChan, updateLightsCh *nbc.NonBlockingChan, wg_ptr *sync.WaitGroup) {
 
 	//fmt.Println("[fsm]: starting")
 	elevio.Init(elevServerAddr, N_FLOORS)
@@ -184,7 +184,7 @@ func FSM(elevServerAddr string, addHallOrderCh *nbc.NonBlockingChan, deleteHallO
 	//doorTimer.Stop()
 	for f := 0; f < N_FLOORS; f++ {
 		for b := 0; b < 3; b++ {
-			elevio.SetButtonLamp(elevio.ButtonType(b),f,false)
+			elevio.SetButtonLamp(elevio.ButtonType(b), f, false)
 		}
 	}
 
@@ -193,9 +193,9 @@ func FSM(elevServerAddr string, addHallOrderCh *nbc.NonBlockingChan, deleteHallO
 	go elevio.PollButtons(buttonCh)
 
 	// Wait until all modules are initialized
-	wg.Done()
+	wg_ptr.Done()
 	fmt.Println("[fsm]: initialized")
-	wg.Wait()
+	wg_ptr.Wait()
 	fmt.Println("[fsm]: starting")
 
 	//elevatorStatusCh <- currElevator
@@ -300,9 +300,9 @@ func FSM(elevServerAddr string, addHallOrderCh *nbc.NonBlockingChan, deleteHallO
 			for floor := 0; floor < N_FLOORS; floor++ {
 				for button := 0; button < N_BUTTONS-1; button++ { // note ignoring cab call lights
 					if !(floor == N_FLOORS-1 && elevio.ButtonType(button) == elevio.BT_HallUp) &&
-						!(floor == 0 && elevio.ButtonType(button) == elevio.BT_HallDown){
-							currElevator.Lights[floor][button] = updateLights[floor][button]
-							elevio.SetButtonLamp(elevio.ButtonType(button), floor, currElevator.Lights[floor][button])
+						!(floor == 0 && elevio.ButtonType(button) == elevio.BT_HallDown) {
+						currElevator.Lights[floor][button] = updateLights[floor][button]
+						elevio.SetButtonLamp(elevio.ButtonType(button), floor, currElevator.Lights[floor][button])
 					}
 				}
 			}
@@ -310,7 +310,7 @@ func FSM(elevServerAddr string, addHallOrderCh *nbc.NonBlockingChan, deleteHallO
 		var completedHallOrderSlice []OrderEvent
 		for floor := 0; floor < N_FLOORS; floor++ {
 			for button := 0; button < N_BUTTONS; button++ {
-				if button<2 && completedOrders[floor][button]{
+				if button < 2 && completedOrders[floor][button] {
 					completedHallOrderSlice = append(completedHallOrderSlice, OrderEvent{Floor: floor, Button: elevio.ButtonType(button), LightOn: false})
 				}
 				completedOrders[floor][button] = false
