@@ -51,10 +51,9 @@ func OrderHandler(thisID string,
 		select {
 		case msg, _ := <-thisTakeOrderCh.Recv:
 			order := msg.(msgs.TakeOrderMsg)
-			// TODO: Verify that only other elevators orders come in here. Or else lights will be wrong
 
 			if order.SenderID == thisID {
-				fmt.Printf("[orderhandler]: Warning: thisTakeOrder from self: %v\n", order)
+				fmt.Printf("[orderhandler]: thisTakeOrder from self: %v\n", order)
 				// TODO: Lights may be wrong
 				addHallOrderCh.Send <- fsm.OrderEvent{Floor: order.Order.Floor, Button: order.Order.Type, LightOn: true}
 			} else {
@@ -65,39 +64,39 @@ func OrderHandler(thisID string,
 		case msg, _ := <-safeOrderCh.Recv:
 			order := msg.(msgs.SafeOrderMsg)
 
-			if order.ReceiverID == thisID {
-				if order, exists := placedOrders[order.Order.ID]; exists {
-					acceptedOrders[order.ID] = order
+			if order, exists := placedOrders[order.Order.ID]; exists {
+				acceptedOrders[order.ID] = order
 
-					// calculate scores
-					scoreMap := make(map[string]float64)
-					for _, elevator := range elevators {
-						scoreMap[elevator.SenderID] = fsm.EstimatedCompletionTime(elevator.Status, fsm.OrderEvent{Floor: order.Floor, Button: order.Type})
-					}
-					// find best (lowest) score
-					bestID := thisID
-					for i, score := range scoreMap {
-						if score < scoreMap[bestID] {
-							bestID = i
-						}
-					}
-					// broadcast
-					fmt.Printf("[orderHandler]: elevator %v should take order %v\n", bestID, order.ID)
-					takeOrderMsg := msgs.TakeOrderMsg{SenderID: thisID, ReceiverID: bestID, Order: order}
-					//fmt.Println("[orderhandler]: writing to broadcast (best)")
-					broadcastTakeOrderCh.Send <- takeOrderMsg
-					//fmt.Println("[orderhandler]: broadcast (best) done")
-
-					if bestID == thisID {
-						takenOrders[order.ID] = order
-						addHallOrderCh.Send <- fsm.OrderEvent{Floor: order.Floor,
-							Button:  order.Type,
-							LightOn: true}
-					}
-				} else {
-					fmt.Println("[orderHandler]: safeOrderCh: order didn't exist")
-					// TODO: error handling
+				// calculate scores
+				scoreMap := make(map[string]float64)
+				for _, elevator := range elevators {
+					scoreMap[elevator.SenderID] = fsm.EstimatedCompletionTime(elevator.Status, fsm.OrderEvent{Floor: order.Floor, Button: order.Type})
 				}
+
+				// find best (lowest) score
+				bestID := thisID
+				for i, score := range scoreMap {
+					if score < scoreMap[bestID] {
+						bestID = i
+					}
+				}
+
+				// broadcast
+				fmt.Printf("[orderHandler]: elevator %v should take order %v\n", bestID, order.ID)
+				takeOrderMsg := msgs.TakeOrderMsg{SenderID: thisID, ReceiverID: bestID, Order: order}
+				//fmt.Println("[orderhandler]: writing to broadcast (best)")
+				broadcastTakeOrderCh.Send <- takeOrderMsg
+				//fmt.Println("[orderhandler]: broadcast (best) done")
+
+				if bestID == thisID {
+					takenOrders[order.ID] = order
+					addHallOrderCh.Send <- fsm.OrderEvent{Floor: order.Floor,
+						Button:  order.Type,
+						LightOn: true}
+				}
+			} else {
+				fmt.Println("[orderHandler]: safeOrderCh: order didn't exist")
+				// TODO: error handling
 			}
 
 		case msg, _ := <-downedElevatorsCh.Recv:
