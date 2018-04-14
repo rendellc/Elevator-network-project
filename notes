@@ -38,6 +38,7 @@ CODE REVIEW:
   Succession functions are presented
   When defyning struct variables use {..., VariableMemberName: VariableMemberValue, ...}
   Review how lights are updated
+  Channel names
 
   main: XYZOrderMsg type ->
 

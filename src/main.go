@@ -12,7 +12,7 @@ import (
 )
 
 var id_ptr = flag.String("id", "noid", "ID for node")
-var elevServerAddr_ptr = flag.String("addr", "noid", "Port for node")
+var elevServerAddr_ptr = flag.String("addr", "localhost:15657", "Port for node")
 var commonPort_ptr = flag.Int("bport", 20010, "Port for all broadcasts")
 
 var wg sync.WaitGroup
