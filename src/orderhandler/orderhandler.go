@@ -1,13 +1,14 @@
 package orderhandler
 
 import (
+	"fmt"
+	"sync"
+	"time"
+
 	"../elevio"
 	"../fsm"
 	"../go-nonblockingchan"
 	"../msgs"
-	"fmt"
-	"sync"
-	"time"
 )
 
 func createOrderID(floor int, button elevio.ButtonType, num_floors int) int {
@@ -55,9 +56,9 @@ func OrderHandler(thisID string,
 			if order.SenderID == thisID {
 				fmt.Printf("[orderhandler]: thisTakeOrder from self: %v\n", order)
 				// TODO: Lights may be wrong
-				addHallOrderCh.Send <- fsm.OrderEvent{Floor: order.Order.Floor, Button: order.Order.Type, LightOn: true}
+				addHallOrderCh.Send <- fsm.OrderEvent{Floor: order.Order.Floor, Button: order.Order.Type, TurnLightOn: true}
 			} else {
-				addHallOrderCh.Send <- fsm.OrderEvent{Floor: order.Order.Floor, Button: order.Order.Type, LightOn: false}
+				addHallOrderCh.Send <- fsm.OrderEvent{Floor: order.Order.Floor, Button: order.Order.Type, TurnLightOn: false}
 			}
 			takenOrders[order.Order.ID] = order.Order
 
@@ -91,8 +92,8 @@ func OrderHandler(thisID string,
 				if bestID == thisID {
 					takenOrders[order.ID] = order
 					addHallOrderCh.Send <- fsm.OrderEvent{Floor: order.Floor,
-						Button:  order.Type,
-						LightOn: true}
+						Button:      order.Type,
+						TurnLightOn: true}
 				}
 			} else {
 				fmt.Println("[orderHandler]: safeOrderCh: order didn't exist")
@@ -109,14 +110,14 @@ func OrderHandler(thisID string,
 				for orderID, order := range lastHeartbeat.TakenOrders {
 					takenOrders[orderID] = order
 					//fmt.Println("[orderhandler]: writing to addHallOrder (take)")
-					addHallOrderCh.Send <- fsm.OrderEvent{Floor: order.Floor, Button: order.Type, LightOn: false}
+					addHallOrderCh.Send <- fsm.OrderEvent{Floor: order.Floor, Button: order.Type, TurnLightOn: false}
 					//fmt.Println("[orderhandler]: addHallOrder (take) done")
 				}
 				// Add accepted orders
 				for orderID, order := range lastHeartbeat.AcceptedOrders {
 					acceptedOrders[orderID] = order
 					//fmt.Println("[orderhandler]: writing to addHallOrder (acc)")
-					addHallOrderCh.Send <- fsm.OrderEvent{Floor: order.Floor, Button: order.Type, LightOn: true}
+					addHallOrderCh.Send <- fsm.OrderEvent{Floor: order.Floor, Button: order.Type, TurnLightOn: true}
 					//fmt.Println("[orderhandler]: addHallOrder (acc) done")
 				}
 				delete(elevators, lastHeartbeat.SenderID) // Not sure about this ? can be handled by heartbeat channel
