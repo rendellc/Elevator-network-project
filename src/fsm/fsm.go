@@ -61,7 +61,7 @@ func FSM(elevServerAddr string, addHallOrderCh *nbc.NonBlockingChan, deleteHallO
 	wg_ptr.Wait()
 	fmt.Println("[fsm]: starting")
 
-	//elevatorStatusCh <- elevator
+	elevatorStatusCh.Send <- elevator
 	for {
 		select {
 
@@ -127,7 +127,7 @@ func FSM(elevServerAddr string, addHallOrderCh *nbc.NonBlockingChan, deleteHallO
 			hallOrder := msg.(OrderEvent)
 
 			elevator.Orders[hallOrder.Floor][hallOrder.Button] = false
-			elevator.CompletedOrders[hallOrder.Floor][hallOrder.Button] = false	//necessary ???
+			elevator.CompletedOrders[hallOrder.Floor][hallOrder.Button] = false //necessary ???
 			elevio.SetButtonLamp(hallOrder.Button, hallOrder.Floor, false)
 			elevator.Lights[hallOrder.Floor][hallOrder.Button] = false
 			if elevator.State == DOOR_OPEN {
