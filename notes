@@ -10,12 +10,14 @@ Build ElevatorServer
 cargo install --force ttk4145_elevator_server
 
 TODO:
-  make port determinable from id and automatic discovery of elevators
-  lost connection with ElevatorServer over time. Do we suffer from this?
+  lights sync after door closes in some cases
+  need to push a button so that other elevator nodes discover the elevator
   simulate package lost (see cmd in mail from Jesus)
-  simulate node temporarily out
   See failure mode 6
   Reduce timeOut wait time
+  initialize elevator again after death
+  measure congestion of network
+  comhandler -> commhandler
 
 
 Tests:
@@ -30,6 +32,32 @@ Tests:
           If placed order is disregarded more than X times after T seconds
           (no acks received), then this elevator takes order.
 
+CODE REVIEW:
+  Names of variables, modules, data types, channels
+  Simplify modules
+  Succession functions are presented
+  When defyning struct variables use {..., VariableMemberName: VariableMemberValue, ...}
+  Review how lights are updated
+
+  main: XYZOrderMsg type ->
+
+  FSM: needs variable simulationMode
+      measure TRAVEL_TIME
+      necessary doorTimer.Stop()
+      send/receiv OrderEvent type, when only ButtonEvent is needed
+      door timer as variable
+      define function to avoid code multiplication
+      Light = Light || something --> Light ||= something
+
+
+
+
 DONE:
   synchronize lights
   outsourcing
+  just ID as flag
+  automatic discovery of networks
+  no lost connection due to inactivity
+
+  Simulations:
+    Node temporarily out (TCP cable out and afterwards in)
