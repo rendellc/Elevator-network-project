@@ -317,11 +317,9 @@ func FSM(elevServerAddr string, addHallOrderCh *nbc.NonBlockingChan, deleteHallO
 			}
 		}
 		if currElevator != prevElevator || len(completedHallOrderSlice) > 0 {
-			fmt.Printf("[fsm]: completedHallOrdersSlice %v\n", completedHallOrderSlice)
 			completedHallOrderCh.Send <- completedHallOrderSlice
 			elevatorStatusCh.Send <- currElevator
 			prevElevator = currElevator
-			fmt.Printf("[fsm]: CompletedHallOrderSlice and currElevator sent.\n")
 		}
 	}
 }
