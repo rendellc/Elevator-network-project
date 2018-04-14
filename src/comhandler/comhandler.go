@@ -243,7 +243,7 @@ func Launch(thisID string, commonPort int,
 						Order: allOrders[orderID].Order}
 
 					thisTakeOrderCh.Send <- msg
-					allOrders[orderID].OrderState = SERVING
+					allOrders[orderID] = createStampedOrder(stampedOrder.Order, SERVING)
 				}
 			}
 
@@ -262,7 +262,7 @@ func Launch(thisID string, commonPort int,
 							Order:      allOrders[orderID].Order}
 
 						thisTakeOrderCh.Send <- msg
-						allOrders[orderID].OrderState = SERVING
+						allOrders[orderID] = createStampedOrder(stampedOrder.Order, SERVING)
 					}
 				}
 			}

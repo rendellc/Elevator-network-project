@@ -176,7 +176,7 @@ func FSM(elevServerAddr string, addHallOrderCh *nbc.NonBlockingChan, deleteHallO
 		var completedHallOrderSlice []OrderEvent
 		for floor := 0; floor < N_FLOORS; floor++ {
 			for button := 0; button < N_BUTTONS; button++ {
-				if button < 2 && elevator.CompletedOrders[floor][button] {
+				if elevio.ButtonType(button) != elevio.BT_Cab && elevator.CompletedOrders[floor][button] {
 					completedHallOrderSlice = append(completedHallOrderSlice, OrderEvent{Floor: floor, Button: elevio.ButtonType(button), TurnLightOn: false})
 				}
 				elevator.CompletedOrders[floor][button] = false
