@@ -229,7 +229,6 @@ func Launch(thisID string, commonPort int,
 
 			if len(peerUpdate.New) > 0 {
 				fmt.Println("[network]: New peer: ", peerUpdate.New)
-				// TODO: special action?
 			}
 
 			allElevatorsHeartbeatCh.Send <- peerUpdate.Peers
@@ -237,7 +236,7 @@ func Launch(thisID string, commonPort int,
 		case msg, _ := <-completedOrderCh.Recv:
 			order := msg.(msgs.Order)
 
-			fmt.Printf("[network]: completedOrderCh: %v\n", order)
+			fmt.Printf("[network]: (from orderhandler) completedOrderCh: %v\n", order)
 			if _, exists := allOrders[order.ID]; exists {
 				completeOrderSendCh <- msgs.CompleteOrderMsg{SenderID: thisID,
 					Order: order}
@@ -250,8 +249,8 @@ func Launch(thisID string, commonPort int,
 		case msg := <-completeOrderRecvCh:
 
 			// acknowledge completed order
-			//completeOrderAckSendCh <- msgs.CompleteOrderAck{ReceiverID: msg.SenderID,
-			//	Order: msg.Order}
+			completeOrderAckSendCh <- msgs.CompleteOrderAck{ReceiverID: msg.SenderID,
+				Order: msg.Order}
 
 			fmt.Printf("[network]: complete order recv: %v\n", msg.Order)
 			delete(allOrders, msg.Order.ID)
@@ -262,10 +261,10 @@ func Launch(thisID string, commonPort int,
 			}
 
 		case msg := <-completeOrderAckRecvCh:
-			fmt.Printf("[network]: complete order ack: %v\n", msg.Order)
 
 			if msg.SenderID != thisID {
-				fmt.Println("[network]: complete order ack")
+				fmt.Printf("[network]: complete order ack: %v\n", msg.Order)
+				//fmt.Println("[network]: complete order ack")
 			}
 			delete(allOrders, msg.Order.ID)
 
