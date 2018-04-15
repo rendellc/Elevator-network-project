@@ -19,6 +19,23 @@ TODO:
   Release
   Final test
 
+README:
+	How to get
+	Usage
+		make + how to run
+	Flags:
+		id
+		addr (optional)
+	System?
+		Master-Slave (per order)
+Add a README.md (or add to your README.md) where you describe what kind of libraries/code you've used that you're not the author of. Feel free to add other relevant info to the README.md as well
+	3rd party code:
+		go-nonblockingchannels (as is)
+		elevio module (as is)
+		comm module (modified)
+		Simulator-v2
+		elevator-server
+
 Questions to Studass:
   Can the elevator box be turned off ?
   Is OK to print to the terminal ?

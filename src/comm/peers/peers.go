@@ -23,7 +23,7 @@ type observation struct {
 }
 
 const interval = 100 * time.Millisecond
-const timeout = 1000 * time.Millisecond //50 * time.Millisecond
+const timeout = 2000 * time.Millisecond //50 * time.Millisecond
 
 func Transmitter(port int, transmitEnable <-chan bool, statusCh <-chan msgs.Heartbeat) {
 

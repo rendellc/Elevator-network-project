@@ -75,7 +75,6 @@ func checkAndRetransmit(allOrders map[int]*StampedOrder, orderID int, thisID str
 					completeOrderSendCh <- msgs.CompleteOrderMsg(stampedOrder.OrderMsg)
 				default:
 					fmt.Printf("[network]: no retransmission set up for this order state: %v\n", stampedOrder.OrderState)
-
 				}
 			} else {
 				if stampedOrder.PlacedCount >= placedGiveupAndTakeTries {
@@ -206,9 +205,8 @@ func Launch(thisID string, commonPort int,
 
 		case msg := <-takeOrderRecvCh:
 
-			allOrders[msg.Order.ID] = createStampedOrder(msg.Order, SERVING)
-
 			if msg.ReceiverID == thisID {
+				allOrders[msg.Order.ID] = createStampedOrder(msg.Order, SERVING)
 				fmt.Printf("[network]: this elevator should take order %v\n", msg.Order.ID)
 				thisTakeOrderCh.Send <- msg
 
