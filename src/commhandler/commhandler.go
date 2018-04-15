@@ -77,18 +77,18 @@ func checkAndRetransmit(allOrders map[int]*StampedOrder, orderID int, thisID str
 					fmt.Printf("[network]: no retransmission set up for this order state: %v\n", stampedOrder.OrderState)
 				}
 			} else {
-				if stampedOrder.PlacedCount >= placedGiveupAndTakeTries {
-					fmt.Printf("[network]: %v retransmit failed %v times\n", orderID, stampedOrder.PlacedCount)
-					switch stampedOrder.OrderState {
-					case ACKWAIT_PLACED:
-						fallthrough
-					case ACKWAIT_TAKE:
-						safeOrderCh.Send <- msgs.SafeOrderMsg{SenderID: thisID,
-							ReceiverID: thisID,
-							Order:      stampedOrder.OrderMsg.Order}
-
-						allOrders[orderID] = createStampedOrder(stampedOrder.OrderMsg.Order, SERVING)
+				// "Give-up actions"
+				switch stampedOrder.OrderState {
+				case ACKWAIT_PLACED:
+					if stampedOrder.PlacedCount >= placedGiveupAndTakeTries {
+						fmt.Printf("[network]: %v retransmit failed %v times\n", orderID, stampedOrder.PlacedCount)
 					}
+				case ACKWAIT_TAKE:
+					safeOrderCh.Send <- msgs.SafeOrderMsg{SenderID: thisID,
+						ReceiverID: thisID,
+						Order:      stampedOrder.OrderMsg.Order}
+
+					allOrders[orderID] = createStampedOrder(stampedOrder.OrderMsg.Order, SERVING)
 				}
 			}
 		}
@@ -175,7 +175,7 @@ func Launch(thisID string, commonPort int,
 			placedOrderSendCh <- msgs.PlacedOrderMsg{SenderID: thisID, Order: order}
 
 		case msg := <-placedOrderAckRecvCh:
-			if msg.ReceiverID == thisID { // ignore msgs to other nodes
+			if msg.ReceiverID == thisID {
 				// Acknowledgement recieved from other node
 				if _, exists := allOrders[msg.Order.ID]; !exists {
 					fmt.Printf("[network]: order %v not found\n", msg.Order.ID)
@@ -183,8 +183,8 @@ func Launch(thisID string, commonPort int,
 					// maybe count how often we end up here?
 				}
 				if orderStamped, _ := allOrders[msg.Order.ID]; orderStamped.OrderState != ACKWAIT_PLACED {
-					fmt.Printf("[network]: order %v not in ackwait_placed\n", msg.Order.ID)
-					break // Not waiting for acknowledgment
+					fmt.Printf("[network]: not awaiting place ack for order %v\n", msg.Order.ID)
+					break
 				}
 
 				fmt.Printf("[network]: order %v acknowledged\n", msg.Order.ID)
