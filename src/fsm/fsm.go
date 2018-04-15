@@ -25,7 +25,7 @@ type Elevator struct {
 	Floor           int
 	Dir             elevio.MotorDirection
 	Orders          [N_FLOORS][N_BUTTONS]bool
-	CompletedOrders [N_FLOORS][N_BUTTONS]bool
+	CompletedOrders [N_FLOORS][N_BUTTONS]bool	// Orders completed in one iteration
 	Lights          [N_FLOORS][N_BUTTONS]bool
 	State           State
 }
@@ -334,8 +334,9 @@ func EstimatedCompletionTime(elev Elevator, orderEvent OrderEvent) float64 { // 
 		}
 		elev.Floor += int(elev.Dir)
 		duration += TRAVEL_TIME
-		if duration >  60.0 {
+		if duration >  60.0 { //debugg
 			fmt.Println("[fsm]: Warning! Extremly large completion time: %f", duration)
+			return duration
 		}
 	}
 }
