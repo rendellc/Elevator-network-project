@@ -214,6 +214,8 @@ func Launch(thisID string, commonPort int,
 			}
 		case msg, _ := <-broadcastTakeOrderCh.Recv:
 			orderMsg := msg.(msgs.TakeOrderMsg)
+
+			orderMsg.SenderID = thisID
 			takeOrderSendCh <- orderMsg
 
 			fmt.Printf("[network]: elevator %v should take %v\n", orderMsg.ReceiverID, orderMsg.Order.ID)
@@ -225,7 +227,7 @@ func Launch(thisID string, commonPort int,
 
 			if msg.ReceiverID == thisID {
 				allOrders[msg.Order.ID] = createStampedOrder(msg.Order, SERVING)
-				fmt.Printf("[network]: this elevator should take order %v\n", msg.Order.ID)
+				fmt.Printf("[network]: This elevator takes order %v\n", msg.Order.ID)
 				thisTakeOrderCh.Send <- msg
 
 				ack := msgs.TakeOrderAck{SenderID: thisID, ReceiverID: msg.SenderID, Order: msg.Order}
@@ -235,7 +237,7 @@ func Launch(thisID string, commonPort int,
 
 		case msg := <-takeOrderAckRecvCh:
 			if msg.ReceiverID == thisID {
-				fmt.Printf("[network]: Recieved ack for order %+v\n", msg)
+				fmt.Printf("[network]: Recieved take ack for order %+v from %v\n", msg.Order, msg.SenderID)
 			}
 
 			allOrders[msg.Order.ID] = createStampedOrder(msg.Order, SERVING)
