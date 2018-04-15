@@ -294,9 +294,9 @@ func Launch(thisID string, commonPort int,
 			if msg.SenderID != thisID {
 				if stampedOrder, exists := allOrders[msg.Order.ID]; exists {
 					if stampedOrder.OrderState == ACKWAIT_COMPLETE {
-						fmt.Printf("[network]: complete order ack: %v\n", msg.Order)
+						fmt.Printf("[network]: complete order ack for %v from %v\n", msg.Order, msg.SenderID)
 					} else {
-						fmt.Printf("[network]: not expecting complete ack for order %v, state: %v\n", msg.Order, allOrders[msg.Order.ID].OrderState)
+						//fmt.Printf("[network]: not expecting complete ack for order %v, state: %v\n", msg.Order, allOrders[msg.Order.ID].OrderState)
 					}
 				} else {
 					fmt.Printf("[network]: order %v from %v to %v not in allOrders\n", msg.Order, msg.SenderID, msg.ReceiverID)
