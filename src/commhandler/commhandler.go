@@ -56,7 +56,7 @@ func checkAndRetransmit(allOrders map[int]*StampedOrder, orderID int, thisID str
 		if time.Now().After(timeoutTime) {
 			// Retransmit order
 			if stampedOrder.TransmitCount <= retransmitCountMax {
-				fmt.Printf("[network]: retransmit order %v, place: %+v\n", orderID, allOrders[orderID])
+				fmt.Printf("[network]: retransmit order %v, : %+v\n", orderID, allOrders[orderID])
 
 				stampedOrder.TransmitCount += 1
 				switch stampedOrder.OrderState {
@@ -254,14 +254,14 @@ func Launch(thisID string, commonPort int,
 
 		case msg := <-completeOrderRecvCh:
 
-			// acknowledge completed order
-			completeOrderAckSendCh <- msgs.CompleteOrderAck{SenderID: thisID,
-				ReceiverID: msg.SenderID,
-				Order:      msg.Order}
-
-			fmt.Printf("[network]: complete order recv: %+v\n", msg.Order)
-
 			if msg.SenderID != thisID {
+				// acknowledge completed order
+				completeOrderAckSendCh <- msgs.CompleteOrderAck{SenderID: thisID,
+					ReceiverID: msg.SenderID,
+					Order:      msg.Order}
+
+				//fmt.Printf("[network]: complete order recv: %+v\n", msg.Order)
+
 				fmt.Printf("[network]: complete forwarded: %v\n", msg.Order)
 				completedOrderOtherElevCh.Send <- msg.Order
 			}
@@ -270,10 +270,18 @@ func Launch(thisID string, commonPort int,
 
 		case msg := <-completeOrderAckRecvCh:
 
-			if msg.SenderID != thisID {
-				fmt.Printf("[network]: complete order ack: %v\n", msg.Order)
-				//fmt.Println("[network]: complete order ack")
+			if stampedOrder, exists := allOrders[msg.Order.ID]; exists {
+				if stampedOrder.OrderState == ACKWAIT_COMPLETE {
+					if msg.Sender != thisID {
+						fmt.Printf("[network]: complete order ack: %v\n", msg.Order)
+					}
+				} else {
+					fmt.Printf("[network]: not expecting complete ack for order %v\n", msg.Order)
+				}
+			} else {
+				fmt.Printf("[network]: order %v not in allOrders\n", msg.Order)
 			}
+
 			delete(allOrders, msg.Order.ID)
 
 		case msg, _ := <-elevatorStatusCh.Recv:
