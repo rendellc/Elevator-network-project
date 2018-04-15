@@ -38,7 +38,7 @@ func createStampedOrder(order msgs.Order, os OrderState) *StampedOrder {
 		OrderMsg:      msgs.OrderMsg{Order: order}}
 }
 
-const ackwaitTimeout = 3000 * time.Millisecond
+const ackwaitTimeout = 100 * time.Millisecond
 const placeAgainTimeIncrement = 10 * time.Second
 const otherGiveupTime = 40 * time.Second
 const retransmitCountMax = 5       // number of times to retransmit if no ack is recieved
@@ -71,10 +71,7 @@ func checkAndRetransmit(allOrders map[int]*StampedOrder, orderID int, thisID str
 						Order:      stampedOrder.OrderMsg.Order}
 				case ACKWAIT_COMPLETE:
 					fmt.Printf("[network]: retransmitting complete for %v time %v\n", stampedOrder.OrderMsg.Order.ID, stampedOrder.TransmitCount)
-					/*takeOrderSendCh <- msgs.OrderMsg{SenderID: thisID,
-					ReceiverID: stampedOrder.OrderMsg.ReceiverID,
-					Order:      stampedOrder.OrderMsg.Order}
-					*/
+
 					completeOrderSendCh <- msgs.CompleteOrderMsg(stampedOrder.OrderMsg)
 
 				}
@@ -164,6 +161,7 @@ func Launch(thisID string, commonPort int,
 
 				if orderStamped.OrderState == ACKWAIT_PLACED {
 					fmt.Printf("[network]: unacked order placed again: %v\n", orderStamped.OrderMsg.Order.ID)
+					orderStamped.TransmitCount = 1
 					orderStamped.PlacedCount += 1
 				}
 			} else {
@@ -255,6 +253,7 @@ func Launch(thisID string, commonPort int,
 			//completeOrderAckSendCh <- msgs.CompleteOrderAck{ReceiverID: msg.SenderID,
 			//	Order: msg.Order}
 
+			fmt.Printf("[network]: complete order recv: %v\n", msg.Order)
 			delete(allOrders, msg.Order.ID)
 
 			if msg.SenderID != thisID {
@@ -263,6 +262,7 @@ func Launch(thisID string, commonPort int,
 			}
 
 		case msg := <-completeOrderAckRecvCh:
+			fmt.Printf("[network]: complete order ack: %v\n", msg.Order)
 
 			if msg.SenderID != thisID {
 				fmt.Println("[network]: complete order ack")
