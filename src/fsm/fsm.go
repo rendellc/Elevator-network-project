@@ -106,7 +106,7 @@ func FSM(elevServerAddr string, addHallOrderCh *nbc.NonBlockingChan, deleteHallO
 				if shouldOpenDoor(elevator) { //buttonEvent.Floor == last_floor
 					setStateToDoorOpen(&elevator, doorTimer)
 					clearOrdersAtFloor(&elevator, false)
-					fmt.Println("[fsm]: Door opens")
+					//fmt.Println("[fsm]: Door opens")
 				} else {
 					updateElevatorDirection(&elevator)
 					setStateToDrive(&elevator)
@@ -140,10 +140,10 @@ func FSM(elevServerAddr string, addHallOrderCh *nbc.NonBlockingChan, deleteHallO
 			elevio.SetFloorIndicator(elevator.Floor)
 			updateElevatorDirection(&elevator)
 			if shouldOpenDoor(elevator) {
-				fmt.Printf("[fsm]: elevatorStatus before opening door: %v", elevator)
+				//fmt.Printf("[fsm]: elevatorStatus before opening door: %v", elevator)
 				setStateToDoorOpen(&elevator, doorTimer)
 				clearOrdersAtFloor(&elevator, false)
-				fmt.Printf("[fsm]: elevatorStatus after opening door: %v", elevator)
+				//fmt.Printf("[fsm]: elevatorStatus after opening door: %v", elevator)
 			} else if elevator.Dir == elevio.MD_Stop {
 				setStateToIdle(&elevator)
 			} else {
@@ -183,7 +183,7 @@ func FSM(elevServerAddr string, addHallOrderCh *nbc.NonBlockingChan, deleteHallO
 			}
 		}
 		if len(completedHallOrderSlice) > 0 {
-			fmt.Printf("[fsm]: completedHallOrderSlice: %v", completedHallOrderSlice)
+			//fmt.Printf("[fsm]: completedHallOrderSlice: %v", completedHallOrderSlice)
 			completedHallOrderCh.Send <- completedHallOrderSlice
 		}
 		elevatorStatusCh.Send <- elevator

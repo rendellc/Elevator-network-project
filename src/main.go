@@ -1,7 +1,7 @@
 package main
 
 import (
-	"./comhandler"
+	"./commhandler"
 	"./fsm"
 	"./go-nonblockingchan"
 	"./orderhandler"
@@ -60,7 +60,7 @@ func main() {
 	// FSM -> Network
 	// (none)
 
-	go comhandler.Launch(*id_ptr, *commonPort_ptr,
+	go commhandler.Launch(*id_ptr, *commonPort_ptr,
 		thisElevatorHeartbeatCh, downedElevatorsCh, placedOrderCh,
 		broadcastTakeOrderCh, completedOrderCh,
 		allElevatorsHeartbeatCh, thisTakeOrderCh, safeOrderCh,
