@@ -13,18 +13,12 @@ Package loss:
 iptables -A INPUT -i eno1 -m statistic -p udp --mode random --probability 0.25 -j DROP
 
 TODO:
-  lights sync after door closes in some cases
-  need to push a button so that other elevator nodes discover the elevator
-  simulate package lost (see cmd in mail from Jesus)
-  See failure mode 6
-  Reduce timeOut wait time
   initialize elevator again after death
   measure congestion of network
-  comhandler -> commhandler
+  retransmition of some messages
 
 
 Tests:
-
   Failure modes:
     1.- Some packages are lost
     2.- Elevator/Network for one module down
@@ -45,8 +39,7 @@ CODE REVIEW:
 
   main: XYZOrderMsg type ->
 
-  FSM: needs variable simulationMode
-      measure TRAVEL_TIME
+  FSM: 
       necessary doorTimer.Stop()
       send/receiv OrderEvent type, when only ButtonEvent is needed
       door timer as variable
