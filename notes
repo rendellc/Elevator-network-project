@@ -42,7 +42,6 @@ CODE REVIEW:
   FSM:
       Necessary to test if button is valid before turning on light
       Delete len(completedHallOrders)>0
-      CompletionTime under 60?
 
 DONE:
   synchronize lights

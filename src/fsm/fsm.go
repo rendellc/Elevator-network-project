@@ -334,9 +334,5 @@ func EstimatedCompletionTime(elev Elevator, orderEvent OrderEvent) float64 { // 
 		}
 		elev.Floor += int(elev.Dir)
 		duration += TRAVEL_TIME
-		if duration >  60.0 { //debugg
-			fmt.Println("[fsm]: Warning! Extremly large completion time: %f", duration)
-			return duration
-		}
 	}
 }
