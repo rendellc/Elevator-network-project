@@ -89,7 +89,8 @@ func checkAndRetransmit(allOrders map[int]*StampedOrder, orderID int, thisID str
 				case ACKWAIT_COMPLETE:
 					fmt.Printf("[network]: retransmitting complete for order %+v time %v\n", stampedOrder.OrderMsg.Order.ID, stampedOrder.TransmitCount)
 
-					completeOrderSendCh <- msgs.CompleteOrderMsg(stampedOrder.OrderMsg)
+					completeOrderSendCh <- msgs.CompleteOrderMsg{SenderID: thisID,
+						Order: stampedOrder.OrderMsg.Order}
 				case SERVING:
 				case SAFE:
 				default:
@@ -263,8 +264,8 @@ func Launch(thisID string, commonPort int,
 		case msg, _ := <-completedOrderCh.Recv:
 			order := msg.(msgs.Order)
 
-			fmt.Printf("[network]: (from orderhandler) completedOrderCh: %v\n", order)
 			if _, exists := allOrders[order.ID]; exists {
+				fmt.Printf("[network]: (from orderhandler) completedOrderCh: %v\n", order)
 				//TODO:uncomment!
 				//completeOrderSendCh <- msgs.CompleteOrderMsg{SenderID: thisID,
 				//	Order: order}
