@@ -288,16 +288,16 @@ func Launch(thisID string, commonPort int,
 
 		case msg := <-completeOrderAckRecvCh:
 
-			if stampedOrder, exists := allOrders[msg.Order.ID]; exists {
-				if stampedOrder.OrderState == ACKWAIT_COMPLETE {
-					if msg.SenderID != thisID {
+			if msg.SenderID != thisID {
+				if stampedOrder, exists := allOrders[msg.Order.ID]; exists {
+					if stampedOrder.OrderState == ACKWAIT_COMPLETE {
 						fmt.Printf("[network]: complete order ack: %v\n", msg.Order)
+					} else {
+						fmt.Printf("[network]: not expecting complete ack for order %v, state: %v\n", msg.Order, allOrders[msg.Order.ID].OrderState)
 					}
 				} else {
-					fmt.Printf("[network]: not expecting complete ack for order %v, state: %v\n", msg.Order, allOrders[msg.Order.ID].OrderState)
+					fmt.Printf("[network]: order %v not in allOrders\n", msg.Order)
 				}
-			} else {
-				fmt.Printf("[network]: order %v not in allOrders\n", msg.Order)
 			}
 
 			delete(allOrders, msg.Order.ID)
