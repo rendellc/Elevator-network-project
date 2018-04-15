@@ -73,8 +73,6 @@ func checkAndRetransmit(allOrders map[int]*StampedOrder, orderID int, thisID str
 		if time.Now().After(timeoutTime) {
 			// Retransmit order
 			if stampedOrder.TransmitCount <= retransmitCountMax {
-				//fmt.Printf("[network]: retransmit order %v, : %+v\n", orderID, allOrders[orderID])
-
 				stampedOrder.TransmitCount += 1
 				switch stampedOrder.OrderState {
 				case ACKWAIT_PLACED:
@@ -102,6 +100,13 @@ func checkAndRetransmit(allOrders map[int]*StampedOrder, orderID int, thisID str
 				case ACKWAIT_PLACED:
 					if stampedOrder.PlacedCount >= placedGiveupAndTakeTries {
 						fmt.Printf("[network]: %v retransmit failed %v times\n", orderID, stampedOrder.PlacedCount)
+
+						safeOrderCh.Send <- msgs.SafeOrderMsg{SenderID: thisID,
+							ReceiverID: thisID,
+							Order:      stampedOrder.OrderMsg.Order}
+
+						allOrders[orderID] = createStampedOrder(stampedOrder.OrderMsg.Order, SERVING)
+
 					}
 				case ACKWAIT_TAKE:
 					safeOrderCh.Send <- msgs.SafeOrderMsg{SenderID: thisID,
