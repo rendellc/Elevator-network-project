@@ -24,8 +24,8 @@ func OrderHandler(thisID string,
 	safeOrderCh *nbc.NonBlockingChan,
 	thisTakeOrderCh *nbc.NonBlockingChan,
 	downedElevatorsCh *nbc.NonBlockingChan,
-	completedOrderThisElevCh *nbc.NonBlockingChan,
-	completedOrderOtherElevCh *nbc.NonBlockingChan,
+	completedHallOrdersThisElevCh *nbc.NonBlockingChan,
+	completedHallOrderOtherElevCh *nbc.NonBlockingChan,
 	/* Write channels */
 	addHallOrderCh *nbc.NonBlockingChan,
 	broadcastTakeOrderCh *nbc.NonBlockingChan,
@@ -134,7 +134,7 @@ func OrderHandler(thisID string,
 			placedOrderCh.Send <- order
 			//fmt.Println("[orderhandler]: placedOrder done")
 
-		case msg, _ := <-completedOrderOtherElevCh.Recv:
+		case msg, _ := <-completedHallOrderOtherElevCh.Recv:
 			completedOrder := msg.(msgs.Order)
 
 			for _, order := range placedOrders {
@@ -158,7 +158,7 @@ func OrderHandler(thisID string,
 
 			deleteHallOrderCh.Send <- fsm.OrderEvent{Floor: completedOrder.Floor, Button: completedOrder.Type}
 
-		case msg, _ := <-completedOrderThisElevCh.Recv:
+		case msg, _ := <-completedHallOrdersThisElevCh.Recv:
 			completedOrders := msg.([]fsm.OrderEvent)
 
 			// find and remove all equivalent placedOrders

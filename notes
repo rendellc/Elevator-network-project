@@ -20,7 +20,6 @@ TODO:
   Reduce timeOut wait time
   initialize elevator again after death
   measure congestion of network
-  comhandler -> commhandler
 
 
 Tests:
@@ -36,7 +35,7 @@ Tests:
           (no acks received), then this elevator takes order.
 
 CODE REVIEW:
-  Names of variables, modules, data types, channels
+  Names of variables, modules, functions, data types, channels
   Simplify modules
   Succession functions are presented
   When defyning struct variables use {..., VariableMemberName: VariableMemberValue, ...}
@@ -45,16 +44,10 @@ CODE REVIEW:
 
   main: XYZOrderMsg type ->
 
-  FSM: needs variable simulationMode
-      measure TRAVEL_TIME
-      necessary doorTimer.Stop()
-      send/receiv OrderEvent type, when only ButtonEvent is needed
-      door timer as variable
-      define function to avoid code multiplication
-      Light = Light || something --> Light ||= something
-
-
-
+  FSM:
+      Necessary to test if button is valid before turning on light
+      Delete len(completedHallOrders)>0
+      CompletionTime under 60?
 
 DONE:
   synchronize lights

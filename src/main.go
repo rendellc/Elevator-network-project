@@ -1,7 +1,7 @@
 package main
 
 import (
-	"./comhandler"
+	"./commhandler"
 	"./fsm"
 	"./go-nonblockingchan"
 	"./orderhandler"
