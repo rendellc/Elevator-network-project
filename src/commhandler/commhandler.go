@@ -56,21 +56,21 @@ func checkAndRetransmit(allOrders map[int]*StampedOrder, orderID int, thisID str
 		if time.Now().After(timeoutTime) {
 			// Retransmit order
 			if stampedOrder.TransmitCount <= retransmitCountMax {
-				//fmt.Printf("[network]: retransmit order %v, place: %+v\n", orderID, allOrders[orderID])
+				fmt.Printf("[network]: retransmit order %v, place: %+v\n", orderID, allOrders[orderID])
 
 				stampedOrder.TransmitCount += 1
 				switch stampedOrder.OrderState {
 				case ACKWAIT_PLACED:
-					fmt.Printf("[network]: retransmitting place for %v\n", stampedOrder.OrderMsg.Order.ID)
+					//fmt.Printf("[network]: retransmitting place for %v\n", stampedOrder.OrderMsg.Order.ID)
 					placedOrderSendCh <- msgs.PlacedOrderMsg{SenderID: thisID,
 						Order: stampedOrder.OrderMsg.Order}
 				case ACKWAIT_TAKE:
-					fmt.Printf("[network]: retransmitting take for %v time %v\n", stampedOrder.OrderMsg.Order.ID, stampedOrder.TransmitCount)
+					//fmt.Printf("[network]: retransmitting take for %v time %v\n", stampedOrder.OrderMsg.Order.ID, stampedOrder.TransmitCount)
 					takeOrderSendCh <- msgs.TakeOrderMsg{SenderID: thisID,
 						ReceiverID: stampedOrder.OrderMsg.ReceiverID,
 						Order:      stampedOrder.OrderMsg.Order}
 				case ACKWAIT_COMPLETE:
-					fmt.Printf("[network]: retransmitting complete for %v time %v\n", stampedOrder.OrderMsg.Order.ID, stampedOrder.TransmitCount)
+					//fmt.Printf("[network]: retransmitting complete for order %+v time %v\n", stampedOrder.OrderMsg.Order.ID, stampedOrder.TransmitCount)
 
 					completeOrderSendCh <- msgs.CompleteOrderMsg(stampedOrder.OrderMsg)
 
@@ -80,6 +80,8 @@ func checkAndRetransmit(allOrders map[int]*StampedOrder, orderID int, thisID str
 					fmt.Printf("[network]: %v retransmit failed %v times\n", orderID, stampedOrder.PlacedCount)
 					switch stampedOrder.OrderState {
 					case ACKWAIT_PLACED:
+						fallthrough
+					case ACKWAIT_TAKE:
 						safeOrderCh.Send <- msgs.SafeOrderMsg{SenderID: thisID,
 							ReceiverID: thisID,
 							Order:      stampedOrder.OrderMsg.Order}
@@ -195,13 +197,17 @@ func Launch(thisID string, commonPort int,
 			orderMsg := msg.(msgs.TakeOrderMsg)
 			takeOrderSendCh <- orderMsg
 
+			fmt.Printf("[network]: elevator %v should take %v\n", orderMsg.ReceiverID, orderMsg.Order.ID)
+
 			allOrders[orderMsg.Order.ID] = createStampedOrder(orderMsg.Order, ACKWAIT_TAKE)
 			allOrders[orderMsg.Order.ID].OrderMsg.ReceiverID = orderMsg.ReceiverID
 
 		case msg := <-takeOrderRecvCh:
+
 			allOrders[msg.Order.ID] = createStampedOrder(msg.Order, SERVING)
 
 			if msg.ReceiverID == thisID {
+				fmt.Printf("[network]: this elevator should take order %v\n", msg.Order.ID)
 				thisTakeOrderCh.Send <- msg
 
 				ack := msgs.TakeOrderAck{SenderID: thisID, ReceiverID: msg.SenderID, Order: msg.Order}
@@ -211,7 +217,7 @@ func Launch(thisID string, commonPort int,
 
 		case msg := <-takeOrderAckRecvCh:
 			if msg.ReceiverID == thisID {
-				fmt.Printf("[network]: Recieved ack: %v\n", msg)
+				fmt.Printf("[network]: Recieved ack for order %+v\n", msg)
 			}
 
 			allOrders[msg.Order.ID] = createStampedOrder(msg.Order, SERVING)
@@ -249,16 +255,18 @@ func Launch(thisID string, commonPort int,
 		case msg := <-completeOrderRecvCh:
 
 			// acknowledge completed order
-			completeOrderAckSendCh <- msgs.CompleteOrderAck{ReceiverID: msg.SenderID,
-				Order: msg.Order}
+			completeOrderAckSendCh <- msgs.CompleteOrderAck{SenderID: thisID,
+				ReceiverID: msg.SenderID,
+				Order:      msg.Order}
 
-			fmt.Printf("[network]: complete order recv: %v\n", msg.Order)
-			delete(allOrders, msg.Order.ID)
+			fmt.Printf("[network]: complete order recv: %+v\n", msg.Order)
 
 			if msg.SenderID != thisID {
 				fmt.Printf("[network]: complete forwarded: %v\n", msg.Order)
 				completedOrderOtherElevCh.Send <- msg.Order
 			}
+
+			delete(allOrders, msg.Order.ID)
 
 		case msg := <-completeOrderAckRecvCh:
 
