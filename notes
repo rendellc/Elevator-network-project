@@ -14,23 +14,25 @@ iptables -A INPUT -i eno1 -m statistic -p udp --mode random --probability 0.25 -
 
 
 TODO:
-  initialize elevator again after death
+  Code REVIEW
+  Readme
+  Release
+  Final test
 
 Questions to Studass:
   Can the elevator box be turned off ?
   Is OK to print to the terminal ?
-  How should we run the code on other computers?
+  How should we run the code on other computers ?
 
 Tests:
-    1.- Some packages are lost
-    2.- Elevator/Network for one module down
-    3.- Elevator/Network for one module down temporarily and then comes back
-    4.- Does the network module crash when ethernet is disconnected
-    5.- Turning off elevator power, disconnecting motor wires
-    6.- Disregarded orders:
+    - Elevator/Network for one module down
+    - Elevator/Network for one module down temporarily and then comes back
+    - Kill program and start again
+    - Block elevator manually: By pressing button and holding elevator
+    - Disregarded orders:
           If placed order is disregarded more than X times after T seconds
           (no acks received), then this elevator takes order.
-    7.- Node temporarily out (TCP cable out and afterwards in)
+    - Turning off elevator power, disconnecting motor wires
 
 CODE REVIEW:
   Names of variables, modules, functions, data types, channels
