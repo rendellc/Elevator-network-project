@@ -44,9 +44,9 @@ func OrderHandler(thisID string,
 
 	// Wait until all modules are initialized
 	wg.Done()
-	fmt.Println("[fsm]: initialized")
+	fmt.Println("[order]: initialized")
 	wg.Wait()
-	fmt.Println("[fsm]: starting")
+	fmt.Println("[order]: starting")
 
 	for {
 		select {

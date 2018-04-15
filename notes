@@ -1,5 +1,5 @@
 Git:
-  To pull submodules:
+  In order to pull submodules:
     First time: git submodule update --init --recursive
     Afterwards: git submodule update --recursive
 
@@ -12,21 +12,27 @@ cargo install --force ttk4145_elevator_server
 Package loss:
 iptables -A INPUT -i eno1 -m statistic -p udp --mode random --probability 0.25 -j DROP
 
-TODO:
-  initialize elevator again after death
-  measure congestion of network
 
+TODO:
+  Code REVIEW
+  Readme
+  Release
+  Final test
+
+Questions to Studass:
+  Can the elevator box be turned off ?
+  Is OK to print to the terminal ?
+  How should we run the code on other computers ?
 
 Tests:
-  Failure modes:
-    1.- Some packages are lost
-    2.- Elevator/Network for one module down
-    3.- Elevator/Network for one module down temporarily and then comes back
-    4.- Does the network module crash when ethernet is disconnected
-    5.- Turning off elevator power, disconnecting motor wires
-    6.- Disregarded orders:
+    - Elevator/Network for one module down
+    - Elevator/Network for one module down temporarily and then comes back
+    - Kill program and start again
+    - Block elevator manually: By pressing button and holding elevator
+    - Disregarded orders:
           If placed order is disregarded more than X times after T seconds
           (no acks received), then this elevator takes order.
+    - Turning off elevator power, disconnecting motor wires
 
 CODE REVIEW:
   Names of variables, modules, functions, data types, channels
@@ -41,6 +47,7 @@ CODE REVIEW:
   FSM:
       Necessary to test if button is valid before turning on light
       Delete len(completedHallOrders)>0
+      Final review
 
 DONE:
   synchronize lights
@@ -49,6 +56,3 @@ DONE:
   automatic discovery of networks
   no lost connection due to inactivity
   retransmition of some messages
-
-  Simulations:
-    Node temporarily out (TCP cable out and afterwards in)

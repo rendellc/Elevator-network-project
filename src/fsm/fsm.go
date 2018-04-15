@@ -303,7 +303,7 @@ func clearOrdersAtFloor(elev *Elevator, canClearLight bool) {
 	}
 }
 
-func EstimatedCompletionTime(elev Elevator, orderEvent OrderEvent) float64 { // TO DO
+func EstimatedCompletionTime(elev Elevator, orderEvent OrderEvent) float64 {
 	const TRAVEL_TIME = 2.5
 	duration := 0.0
 	elev.Orders[orderEvent.Floor][orderEvent.Button] = true
