@@ -90,6 +90,7 @@ func checkAndRetransmit(allOrders map[int]*StampedOrder, orderID int, thisID str
 					fmt.Printf("[network]: retransmitting complete for order %+v time %v\n", stampedOrder.OrderMsg.Order.ID, stampedOrder.TransmitCount)
 
 					completeOrderSendCh <- msgs.CompleteOrderMsg(stampedOrder.OrderMsg)
+				case SERVING:
 				default:
 					fmt.Printf("[network]: no retransmission set up for this order state: %v\n", stampedOrder.OrderState)
 				}
