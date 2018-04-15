@@ -55,7 +55,7 @@ func createStampedOrder(order msgs.Order, os OrderState) *StampedOrder {
 		OrderMsg:      msgs.OrderMsg{Order: order}}
 }
 
-const ackwaitTimeout = 200 * time.Millisecond
+const ackwaitTimeout = 2000 * time.Millisecond
 const placeAgainTimeIncrement = 10 * time.Second
 const otherGiveupTime = 40 * time.Second
 const retransmitCountMax = 5       // number of times to retransmit if no ack is recieved
