@@ -34,12 +34,12 @@ func main() {
 	// Channels: FSM -> OrderHandler
 	elevatorStatusCh := nbc.New()         //make(chan fsm.Elevator)
 	placedHallOrderCh := nbc.New()        //make(chan fsm.OrderEvent)
-	completedOrderThisElevCh := nbc.New() //make(chan []fsm.OrderEvent)
+	completedHallOrdersThisElevCh := nbc.New() //make(chan []fsm.OrderEvent)
 
 	// Channels: OrderHandler -> FSM
 	addHallOrderCh := nbc.New()    //make(chan fsm.OrderEvent)
 	deleteHallOrderCh := nbc.New() //make(chan fsm.OrderEvent)
-	turnOnLightsCh := nbc.New()    //make(chan [N_FLOORS][N_BUTTONS]bool)
+	updateLightsCh := nbc.New()    //make(chan [N_FLOORS][N_BUTTONS]bool)
 
 	// Channels: OrderHandler -> Network
 	broadcastTakeOrderCh := nbc.New()    //make(chan msgs.TakeOrderMsg)
@@ -69,15 +69,14 @@ func main() {
 
 	go orderhandler.OrderHandler(*id_ptr,
 		elevatorStatusCh, allElevatorsHeartbeatCh, placedHallOrderCh, safeOrderCh,
-		thisTakeOrderCh, downedElevatorsCh, completedOrderThisElevCh,
+		thisTakeOrderCh, downedElevatorsCh, completedHallOrdersThisElevCh,
 		completedOrderOtherElevCh,
 		addHallOrderCh, broadcastTakeOrderCh, placedOrderCh, deleteHallOrderCh,
-		completedOrderCh, thisElevatorHeartbeatCh, turnOnLightsCh,
+		completedOrderCh, thisElevatorHeartbeatCh, updateLightsCh,
 		&wg)
 
-	go fsm.FSM(*elevServerAddr_ptr, addHallOrderCh, deleteHallOrderCh,
-		placedHallOrderCh, completedOrderThisElevCh,
-		elevatorStatusCh, turnOnLightsCh, &wg)
+	go fsm.FSM(*elevServerAddr_ptr, addHallOrderCh, deleteHallOrderCh, updateLightsCh,
+		placedHallOrderCh, completedHallOrdersThisElevCh, elevatorStatusCh, &wg)
 
 	for {
 		select {}
