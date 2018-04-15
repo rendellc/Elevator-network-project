@@ -45,7 +45,7 @@ const retransmitCountMax = 5       // number of times to retransmit if no ack is
 const placedGiveupAndTakeTries = 3 // if no acks are recieved and user tries this many times, take order
 
 func checkAndRetransmit(allOrders map[int]*StampedOrder, orderID int, thisID string,
-	placedOrderSendCh chan<- msgs.PlacedOrderMsg, takeOrderSendCh chan<- msgs.TakeOrderMsg,
+	placedOrderSendCh chan<- msgs.PlacedOrderMsg, takeOrderSendCh chan<- msgs.TakeOrderMsg, completeOrderSendCh chan<- msgs.CompleteOrderMsg,
 	safeOrderCh *nbc.NonBlockingChan) {
 
 	if stampedOrder, exists := allOrders[orderID]; !exists {
@@ -75,6 +75,7 @@ func checkAndRetransmit(allOrders map[int]*StampedOrder, orderID int, thisID str
 					ReceiverID: stampedOrder.OrderMsg.ReceiverID,
 					Order:      stampedOrder.OrderMsg.Order}
 					*/
+					completeOrderSendCh <- msgs.CompleteOrderMsg(stampedOrder.OrderMsg)
 
 				}
 			} else {
@@ -114,14 +115,16 @@ func Launch(thisID string, commonPort int,
 	takeOrderSendCh := make(chan msgs.TakeOrderMsg)
 	takeOrderAckSendCh := make(chan msgs.TakeOrderAck)
 	completeOrderSendCh := make(chan msgs.CompleteOrderMsg)
-	go bcast.Transmitter(commonPort, placedOrderSendCh, placedOrderAckSendCh, takeOrderAckSendCh, takeOrderSendCh, completeOrderSendCh)
+	completeOrderAckSendCh := make(chan msgs.CompleteOrderAck)
+	go bcast.Transmitter(commonPort, placedOrderSendCh, placedOrderAckSendCh, takeOrderAckSendCh, takeOrderSendCh, completeOrderSendCh, completeOrderAckSendCh)
 
 	placedOrderRecvCh := make(chan msgs.PlacedOrderMsg)
 	placedOrderAckRecvCh := make(chan msgs.PlacedOrderAck)
 	takeOrderRecvCh := make(chan msgs.TakeOrderMsg)
 	takeOrderAckRecvCh := make(chan msgs.TakeOrderAck)
 	completeOrderRecvCh := make(chan msgs.CompleteOrderMsg)
-	go bcast.Receiver(commonPort, placedOrderRecvCh, placedOrderAckRecvCh, takeOrderAckRecvCh, takeOrderRecvCh, completeOrderRecvCh)
+	completeOrderAckRecvCh := make(chan msgs.CompleteOrderAck)
+	go bcast.Receiver(commonPort, placedOrderRecvCh, placedOrderAckRecvCh, takeOrderAckRecvCh, takeOrderRecvCh, completeOrderRecvCh, completeOrderAckRecvCh)
 
 	peerTxEnable := make(chan bool)
 	updateHeartbeatCh := make(chan msgs.Heartbeat)
@@ -137,11 +140,14 @@ func Launch(thisID string, commonPort int,
 	fmt.Println("[network]: initialized")
 	wg.Wait()
 	fmt.Println("[network]: starting")
+
 	for {
 		select {
 		case msg := <-placedOrderRecvCh:
 			if msg.SenderID != thisID { // Order transmitted from other node
 				allOrders[msg.Order.ID] = createStampedOrder(msg.Order, SAFE)
+				allOrders[msg.Order.ID].OrderMsg.SenderID = msg.SenderID
+
 				// acknowledge order
 				ack := msgs.PlacedOrderAck{SenderID: thisID,
 					ReceiverID: msg.SenderID,
@@ -157,7 +163,7 @@ func Launch(thisID string, commonPort int,
 				fmt.Printf("[network]: existing order placed: state %v %v\n", orderStamped.OrderState, ACKWAIT_PLACED)
 
 				if orderStamped.OrderState == ACKWAIT_PLACED {
-					fmt.Println("[network]: old order in ackwait_placed")
+					fmt.Printf("[network]: unacked order placed again: %v\n", orderStamped.OrderMsg.Order.ID)
 					orderStamped.PlacedCount += 1
 				}
 			} else {
@@ -234,17 +240,34 @@ func Launch(thisID string, commonPort int,
 			order := msg.(msgs.Order)
 
 			fmt.Printf("[network]: completedOrderCh: %v\n", order)
-			completeOrderSendCh <- msgs.CompleteOrderMsg{Order: order}
-			delete(allOrders, order.ID)
+			if _, exists := allOrders[order.ID]; exists {
+				completeOrderSendCh <- msgs.CompleteOrderMsg{SenderID: thisID,
+					Order: order}
+				allOrders[order.ID] = createStampedOrder(order, ACKWAIT_COMPLETE)
+				allOrders[order.ID].OrderMsg.SenderID = thisID
+			} else {
+				fmt.Printf("[network]: complete unknown order %v\n", order.ID)
+			}
 
 		case msg := <-completeOrderRecvCh:
 
-			fmt.Printf("[network]: completeOrderrecv: %v\n", msg.Order)
+			// acknowledge completed order
+			//completeOrderAckSendCh <- msgs.CompleteOrderAck{ReceiverID: msg.SenderID,
+			//	Order: msg.Order}
+
 			delete(allOrders, msg.Order.ID)
 
 			if msg.SenderID != thisID {
+				fmt.Printf("[network]: complete forwarded: %v\n", msg.Order)
 				completedOrderOtherElevCh.Send <- msg.Order
 			}
+
+		case msg := <-completeOrderAckRecvCh:
+
+			if msg.SenderID != thisID {
+				fmt.Println("[network]: complete order ack")
+			}
+			delete(allOrders, msg.Order.ID)
 
 		case msg, _ := <-elevatorStatusCh.Recv:
 			heartbeat := msg.(msgs.Heartbeat)
@@ -260,43 +283,39 @@ func Launch(thisID string, commonPort int,
 		// actions that happen on every update
 		for orderID, stampedOrder := range allOrders {
 			// retransmission if necessary
-			checkAndRetransmit(allOrders, orderID, thisID, placedOrderSendCh, takeOrderSendCh, safeOrderCh)
+			checkAndRetransmit(allOrders, orderID, thisID, placedOrderSendCh, takeOrderSendCh, completeOrderSendCh, safeOrderCh)
+			// TODO: verify that PlacedCount is incremented in the above function call
+			placeAgainDuration := time.Duration(stampedOrder.PlacedCount) * placeAgainTimeIncrement
+			deleteTime := stampedOrder.TimeStamp.Add(placeAgainDuration)
 
-			switch stampedOrder.OrderState {
-			case ACKWAIT_PLACED:
-				// TODO: verify that PlacedCount is incremented in the above function call
-				placeAgainDuration := time.Duration(stampedOrder.PlacedCount) * placeAgainTimeIncrement
-				deleteTime := stampedOrder.TimeStamp.Add(placeAgainDuration)
-
-				if time.Now().After(deleteTime) {
-					fmt.Println("[network]: delete old order")
-					delete(allOrders, orderID)
-				}
-				//case ACKWAIT_TAKE:
-				//	if time.Since(stampedOrder.TimeStamp) > ackwaitTimeout {
-				//		fmt.Printf("[timeout]: take ack for %v\n", orderID)
-				//		msg := msgs.TakeOrderMsg{SenderID: thisID, ReceiverID: thisID,
-				//			Order: allOrders[orderID].OrderMsg.Order}
-
-				//		thisTakeOrderCh.Send <- msg
-				//		allOrders[orderID] = createStampedOrder(stampedOrder.OrderMsg.Order, SERVING)
-				//	}
+			if stampedOrder.OrderState == ACKWAIT_PLACED && time.Now().After(deleteTime) {
+				fmt.Printf("[network]: delete old order: %v\n", orderID)
+				delete(allOrders, orderID)
 			}
+			//case ACKWAIT_TAKE:
+			//	if time.Since(stampedOrder.TimeStamp) > ackwaitTimeout {
+			//		fmt.Printf("[timeout]: take ack for %v\n", orderID)
+			//		msg := msgs.TakeOrderMsg{SenderID: thisID, ReceiverID: thisID,
+			//			Order: allOrders[orderID].OrderMsg.Order}
 
-			for orderID, stampedOrder := range allOrders {
-				// check if order should be given up on
-				switch stampedOrder.OrderState {
-				default:
-					if time.Since(stampedOrder.TimeStamp) > otherGiveupTime {
-						fmt.Printf("[timeout]: complete not recieved for %v\n", orderID)
+			//		thisTakeOrderCh.Send <- msg
+			//		allOrders[orderID] = createStampedOrder(stampedOrder.OrderMsg.Order, SERVING)
+			//	}
+		}
 
-						msg := msgs.TakeOrderMsg{SenderID: thisID,
-							ReceiverID: thisID,
-							Order:      allOrders[orderID].OrderMsg.Order}
+		for orderID, stampedOrder := range allOrders {
+			// check if order should be given up on
+			switch stampedOrder.OrderState {
+			default:
+				if time.Since(stampedOrder.TimeStamp) > otherGiveupTime {
+					fmt.Printf("[timeout]: complete not recieved for %v\n", orderID)
 
-						thisTakeOrderCh.Send <- msg
-						allOrders[orderID] = createStampedOrder(stampedOrder.OrderMsg.Order, SERVING)
-					}
+					msg := msgs.TakeOrderMsg{SenderID: thisID,
+						ReceiverID: thisID,
+						Order:      allOrders[orderID].OrderMsg.Order}
+
+					thisTakeOrderCh.Send <- msg
+					allOrders[orderID] = createStampedOrder(stampedOrder.OrderMsg.Order, SERVING)
 				}
 			}
 		}

@@ -23,6 +23,7 @@ type TakeOrderMsg OrderMsg
 type TakeOrderAck OrderMsg
 type SafeOrderMsg OrderMsg
 type CompleteOrderMsg OrderMsg
+type CompleteOrderAck OrderMsg
 
 type Heartbeat struct {
 	SenderID       string        `json:"sender_id"`
