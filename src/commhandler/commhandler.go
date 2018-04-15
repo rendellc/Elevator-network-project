@@ -272,7 +272,7 @@ func Launch(thisID string, commonPort int,
 
 			if stampedOrder, exists := allOrders[msg.Order.ID]; exists {
 				if stampedOrder.OrderState == ACKWAIT_COMPLETE {
-					if msg.Sender != thisID {
+					if msg.SenderID != thisID {
 						fmt.Printf("[network]: complete order ack: %v\n", msg.Order)
 					}
 				} else {
