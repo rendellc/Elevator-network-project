@@ -21,6 +21,23 @@ const (
 	ACKWAIT_COMPLETE                   // order has been completed by this elevator and elevator is waiting for completed_ack from order master
 )
 
+func (s OrderState) String() string {
+	switch s {
+	case ACKWAIT_PLACED:
+		return "ACKWAIT_PLACED"
+	case SAFE:
+		return "SAFE"
+	case ACKWAIT_TAKE:
+		return "ACKWAIT_TAKE"
+	case SERVING:
+		return "SERVING"
+	case ACKWAIT_COMPLETE:
+		return "ACKWAIT_COMPLETE"
+	default:
+		return "someorderstate"
+	}
+}
+
 type StampedOrder struct {
 	TimeStamp     time.Time
 	TransmitCount int
@@ -38,7 +55,7 @@ func createStampedOrder(order msgs.Order, os OrderState) *StampedOrder {
 		OrderMsg:      msgs.OrderMsg{Order: order}}
 }
 
-const ackwaitTimeout = 500 * time.Millisecond
+const ackwaitTimeout = 200 * time.Millisecond
 const placeAgainTimeIncrement = 10 * time.Second
 const otherGiveupTime = 40 * time.Second
 const retransmitCountMax = 5       // number of times to retransmit if no ack is recieved
@@ -276,7 +293,7 @@ func Launch(thisID string, commonPort int,
 						fmt.Printf("[network]: complete order ack: %v\n", msg.Order)
 					}
 				} else {
-					fmt.Printf("[network]: not expecting complete ack for order %v\n", msg.Order)
+					fmt.Printf("[network]: not expecting complete ack for order %v, state: %v\n", msg.Order, allOrders[msg.Order.ID].OrderState)
 				}
 			} else {
 				fmt.Printf("[network]: order %v not in allOrders\n", msg.Order)
