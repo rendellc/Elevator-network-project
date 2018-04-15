@@ -56,23 +56,25 @@ func checkAndRetransmit(allOrders map[int]*StampedOrder, orderID int, thisID str
 		if time.Now().After(timeoutTime) {
 			// Retransmit order
 			if stampedOrder.TransmitCount <= retransmitCountMax {
-				fmt.Printf("[network]: retransmit order %v, : %+v\n", orderID, allOrders[orderID])
+				//fmt.Printf("[network]: retransmit order %v, : %+v\n", orderID, allOrders[orderID])
 
 				stampedOrder.TransmitCount += 1
 				switch stampedOrder.OrderState {
 				case ACKWAIT_PLACED:
-					//fmt.Printf("[network]: retransmitting place for %v\n", stampedOrder.OrderMsg.Order.ID)
+					fmt.Printf("[network]: retransmitting place for %v for time %v\n", stampedOrder.OrderMsg.Order.ID, stampedOrder.TransmitCount)
 					placedOrderSendCh <- msgs.PlacedOrderMsg{SenderID: thisID,
 						Order: stampedOrder.OrderMsg.Order}
 				case ACKWAIT_TAKE:
-					//fmt.Printf("[network]: retransmitting take for %v time %v\n", stampedOrder.OrderMsg.Order.ID, stampedOrder.TransmitCount)
+					fmt.Printf("[network]: retransmitting take for %v time %v\n", stampedOrder.OrderMsg.Order.ID, stampedOrder.TransmitCount)
 					takeOrderSendCh <- msgs.TakeOrderMsg{SenderID: thisID,
 						ReceiverID: stampedOrder.OrderMsg.ReceiverID,
 						Order:      stampedOrder.OrderMsg.Order}
 				case ACKWAIT_COMPLETE:
-					//fmt.Printf("[network]: retransmitting complete for order %+v time %v\n", stampedOrder.OrderMsg.Order.ID, stampedOrder.TransmitCount)
+					fmt.Printf("[network]: retransmitting complete for order %+v time %v\n", stampedOrder.OrderMsg.Order.ID, stampedOrder.TransmitCount)
 
 					completeOrderSendCh <- msgs.CompleteOrderMsg(stampedOrder.OrderMsg)
+				default:
+					fmt.Printf("[network]: no retransmission set up for this order state: %v\n", stampedOrder.OrderState)
 
 				}
 			} else {
@@ -264,9 +266,9 @@ func Launch(thisID string, commonPort int,
 
 				fmt.Printf("[network]: complete forwarded: %v\n", msg.Order)
 				completedOrderOtherElevCh.Send <- msg.Order
-			}
 
-			delete(allOrders, msg.Order.ID)
+				delete(allOrders, msg.Order.ID)
+			}
 
 		case msg := <-completeOrderAckRecvCh:
 
