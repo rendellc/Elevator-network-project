@@ -207,6 +207,7 @@ func Launch(thisID string, commonPort int,
 			// check for ackwait timers
 			switch stampedOrder.OrderState {
 			case ACKWAIT_PLACED:
+
 				retransmitDuration := time.Duration(stampedOrder.RetransmitCount) * ackwaitTimeout
 				timeoutTime := stampedOrder.TimeStamp.Add(retransmitDuration)
 
