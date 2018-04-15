@@ -14,10 +14,11 @@ type OrderState int
 
 // TODO: make these non-exported: ie. _SAFE
 const (
-	ACKWAIT_PLACED OrderState = iota // this elevator is waiting for an elevator to acknowledge a placed order
-	SAFE                             // order has been seen by more than one elevator
-	ACKWAIT_TAKE                     // this elevator is waiting for an elevator to acknowledge that it will take the order
-	SERVING                          // order is being served by some elevator
+	ACKWAIT_PLACED   OrderState = iota // this elevator is waiting for an elevator to acknowledge a placed order
+	SAFE                               // order has been seen by more than one elevator
+	ACKWAIT_TAKE                       // this elevator is waiting for an elevator to acknowledge that it will take the order
+	SERVING                            // order is being served by some elevator
+	ACKWAIT_COMPLETE                   // order has been completed by this elevator and elevator is waiting for completed_ack from order master
 )
 
 type StampedOrder struct {
@@ -68,6 +69,12 @@ func checkAndRetransmit(allOrders map[int]*StampedOrder, orderID int, thisID str
 					takeOrderSendCh <- msgs.TakeOrderMsg{SenderID: thisID,
 						ReceiverID: stampedOrder.OrderMsg.ReceiverID,
 						Order:      stampedOrder.OrderMsg.Order}
+				case ACKWAIT_COMPLETE:
+					fmt.Printf("[network]: retransmitting complete for %v time %v\n", stampedOrder.OrderMsg.Order.ID, stampedOrder.TransmitCount)
+					/*takeOrderSendCh <- msgs.OrderMsg{SenderID: thisID,
+					ReceiverID: stampedOrder.OrderMsg.ReceiverID,
+					Order:      stampedOrder.OrderMsg.Order}
+					*/
 
 				}
 			} else {
@@ -80,8 +87,6 @@ func checkAndRetransmit(allOrders map[int]*StampedOrder, orderID int, thisID str
 							Order:      stampedOrder.OrderMsg.Order}
 
 						allOrders[orderID] = createStampedOrder(stampedOrder.OrderMsg.Order, SERVING)
-					case ACKWAIT_TAKE:
-
 					}
 				}
 			}
@@ -106,15 +111,15 @@ func Launch(thisID string, commonPort int,
 
 	placedOrderSendCh := make(chan msgs.PlacedOrderMsg)
 	placedOrderAckSendCh := make(chan msgs.PlacedOrderAck)
-	takeOrderAckSendCh := make(chan msgs.TakeOrderAck)
 	takeOrderSendCh := make(chan msgs.TakeOrderMsg)
+	takeOrderAckSendCh := make(chan msgs.TakeOrderAck)
 	completeOrderSendCh := make(chan msgs.CompleteOrderMsg)
 	go bcast.Transmitter(commonPort, placedOrderSendCh, placedOrderAckSendCh, takeOrderAckSendCh, takeOrderSendCh, completeOrderSendCh)
 
 	placedOrderRecvCh := make(chan msgs.PlacedOrderMsg)
 	placedOrderAckRecvCh := make(chan msgs.PlacedOrderAck)
-	takeOrderAckRecvCh := make(chan msgs.TakeOrderAck)
 	takeOrderRecvCh := make(chan msgs.TakeOrderMsg)
+	takeOrderAckRecvCh := make(chan msgs.TakeOrderAck)
 	completeOrderRecvCh := make(chan msgs.CompleteOrderMsg)
 	go bcast.Receiver(commonPort, placedOrderRecvCh, placedOrderAckRecvCh, takeOrderAckRecvCh, takeOrderRecvCh, completeOrderRecvCh)
 
@@ -184,9 +189,10 @@ func Launch(thisID string, commonPort int,
 			}
 		case msg, _ := <-broadcastTakeOrderCh.Recv:
 			orderMsg := msg.(msgs.TakeOrderMsg)
-			//takeOrderSendCh <- orderMsg
+			takeOrderSendCh <- orderMsg
 
 			allOrders[orderMsg.Order.ID] = createStampedOrder(orderMsg.Order, ACKWAIT_TAKE)
+			allOrders[orderMsg.Order.ID].OrderMsg.ReceiverID = orderMsg.ReceiverID
 
 		case msg := <-takeOrderRecvCh:
 			allOrders[msg.Order.ID] = createStampedOrder(msg.Order, SERVING)
