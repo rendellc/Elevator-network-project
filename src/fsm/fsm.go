@@ -140,7 +140,7 @@ func FSM(elevServerAddr string,
 			}
 		}
 		if len(completedHallOrders) > 0 {
-			fmt.Printf("[fsm]: completedHallOrders: %v", completedHallOrders)
+			//fmt.Printf("[fsm]: completedHallOrders: %v", completedHallOrders)
 			completedHallOrdersThisElevCh.Send <- completedHallOrders
 		}
 	}
