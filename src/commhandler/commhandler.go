@@ -265,8 +265,9 @@ func Launch(thisID string, commonPort int,
 
 			fmt.Printf("[network]: (from orderhandler) completedOrderCh: %v\n", order)
 			if _, exists := allOrders[order.ID]; exists {
-				completeOrderSendCh <- msgs.CompleteOrderMsg{SenderID: thisID,
-					Order: order}
+				//TODO:uncomment!
+				//completeOrderSendCh <- msgs.CompleteOrderMsg{SenderID: thisID,
+				//	Order: order}
 				allOrders[order.ID] = createStampedOrder(order, ACKWAIT_COMPLETE)
 				allOrders[order.ID].OrderMsg.SenderID = thisID
 			} else {
@@ -275,19 +276,17 @@ func Launch(thisID string, commonPort int,
 
 		case msg := <-completeOrderRecvCh:
 
-			if msg.SenderID != thisID {
-				// acknowledge completed order
-				completeOrderAckSendCh <- msgs.CompleteOrderAck{SenderID: thisID,
-					ReceiverID: msg.SenderID,
-					Order:      msg.Order}
+			// acknowledge completed order
+			completeOrderAckSendCh <- msgs.CompleteOrderAck{SenderID: thisID,
+				ReceiverID: msg.SenderID,
+				Order:      msg.Order}
 
-				//fmt.Printf("[network]: complete order recv: %+v\n", msg.Order)
+			//fmt.Printf("[network]: complete order recv: %+v\n", msg.Order)
 
-				fmt.Printf("[network]: complete forwarded: %v\n", msg.Order)
-				completedOrderOtherElevCh.Send <- msg.Order
+			fmt.Printf("[network]: complete forwarded: %v\n", msg.Order)
+			completedOrderOtherElevCh.Send <- msg.Order
 
-				delete(allOrders, msg.Order.ID)
-			}
+			delete(allOrders, msg.Order.ID)
 
 		case msg := <-completeOrderAckRecvCh:
 
@@ -299,7 +298,7 @@ func Launch(thisID string, commonPort int,
 						//fmt.Printf("[network]: not expecting complete ack for order %v, state: %v\n", msg.Order, allOrders[msg.Order.ID].OrderState)
 					}
 				} else {
-					fmt.Printf("[network]: order %v from %v to %v not in allOrders\n", msg.Order, msg.SenderID, msg.ReceiverID)
+					//fmt.Printf("[network]: order %v from %v to %v not in allOrders\n", msg.Order, msg.SenderID, msg.ReceiverID)
 				}
 
 				delete(allOrders, msg.Order.ID)
