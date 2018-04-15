@@ -301,9 +301,9 @@ func Launch(thisID string, commonPort int,
 				} else {
 					fmt.Printf("[network]: order %v from %v to %v not in allOrders\n", msg.Order, msg.SenderID, msg.ReceiverID)
 				}
-			}
 
-			delete(allOrders, msg.Order.ID)
+				delete(allOrders, msg.Order.ID)
+			}
 
 		case msg, _ := <-elevatorStatusCh.Recv:
 			heartbeat := msg.(msgs.Heartbeat)
