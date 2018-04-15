@@ -91,6 +91,7 @@ func checkAndRetransmit(allOrders map[int]*StampedOrder, orderID int, thisID str
 
 					completeOrderSendCh <- msgs.CompleteOrderMsg(stampedOrder.OrderMsg)
 				case SERVING:
+				case SAFE:
 				default:
 					fmt.Printf("[network]: no retransmission set up for this order state: %v\n", stampedOrder.OrderState)
 				}
@@ -298,7 +299,7 @@ func Launch(thisID string, commonPort int,
 						fmt.Printf("[network]: not expecting complete ack for order %v, state: %v\n", msg.Order, allOrders[msg.Order.ID].OrderState)
 					}
 				} else {
-					fmt.Printf("[network]: order %v not in allOrders\n", msg.Order)
+					fmt.Printf("[network]: order %v from %v to %v not in allOrders\n", msg.Order, msg.SenderID, msg.ReceiverID)
 				}
 			}
 
