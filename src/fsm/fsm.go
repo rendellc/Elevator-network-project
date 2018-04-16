@@ -2,12 +2,16 @@ package fsm
 
 import (
 	"fmt"
+	"log"
+	"os"
 	"sync"
 	"time"
 
 	"../elevio"
 	"../go-nonblockingchan"
 )
+
+var Info *log.Logger
 
 const N_FLOORS = 4
 const N_BUTTONS = 3
@@ -25,7 +29,7 @@ type Elevator struct {
 	Floor           int
 	Dir             elevio.MotorDirection
 	Orders          [N_FLOORS][N_BUTTONS]bool
-	CompletedOrders [N_FLOORS][N_BUTTONS]bool	// Orders completed in one iteration
+	CompletedOrders [N_FLOORS][N_BUTTONS]bool // Orders completed in one iteration
 	Lights          [N_FLOORS][N_BUTTONS]bool
 	State           State
 }
@@ -48,6 +52,8 @@ func FSM(elevServerAddr string,
 	/* Sync */
 	wg_ptr *sync.WaitGroup) {
 
+	Info = log.New(os.Stdout, "[fsm]: ", 0)
+
 	var elevator Elevator
 	var doorTimer = time.NewTimer(DOOR_OPEN_TIME * time.Second)
 	doorTimer.Stop()
@@ -68,7 +74,7 @@ func FSM(elevServerAddr string,
 	for {
 		elevatorStatusCh.Send <- elevator
 		select {
-		case buttonEvent := <- buttonCh:
+		case buttonEvent := <-buttonCh:
 			orderEvent := OrderEvent{Floor: buttonEvent.Floor, Button: buttonEvent.Button}
 			if buttonEvent.Button == elevio.BT_Cab {
 				orderEvent.TurnLightOn = true
@@ -77,11 +83,11 @@ func FSM(elevServerAddr string,
 				placedHallOrderCh.Send <- orderEvent
 			}
 
-		case msg, _ := <- addHallOrderCh.Recv:
+		case msg, _ := <-addHallOrderCh.Recv:
 			hallOrder := msg.(OrderEvent)
 			fsmOnAddedOrder(&elevator, doorTimer, hallOrder)
 
-		case msg, _ := <- deleteHallOrderCh.Recv:
+		case msg, _ := <-deleteHallOrderCh.Recv:
 			hallOrder := msg.(OrderEvent)
 			clearOrder(&elevator, hallOrder.Button, true)
 			elevator.CompletedOrders[hallOrder.Floor][hallOrder.Button] = false //necessary ???
@@ -90,7 +96,7 @@ func FSM(elevServerAddr string,
 				clearOrdersAtFloor(&elevator, true)
 			}
 
-		case elevator.Floor = <- floorSensorCh:
+		case elevator.Floor = <-floorSensorCh:
 			elevio.SetFloorIndicator(elevator.Floor)
 			if shouldOpenDoor(elevator) {
 				clearOrdersAtFloor(&elevator, true)
@@ -105,7 +111,7 @@ func FSM(elevServerAddr string,
 				}
 			}
 
-		case <- doorTimer.C:
+		case <-doorTimer.C:
 			elevio.SetDoorOpenLamp(false)
 			updateElevatorDirection(&elevator)
 			if elevator.Dir == elevio.MD_Stop {
@@ -114,7 +120,7 @@ func FSM(elevServerAddr string,
 				setStateToDrive(&elevator)
 			}
 
-		case msg, _ := <- updateLightsCh.Recv:
+		case msg, _ := <-updateLightsCh.Recv:
 			updateLights := msg.([N_FLOORS][N_BUTTONS]bool)
 			for floor := 0; floor < N_FLOORS; floor++ {
 				for button := 0; button < N_BUTTONS; button++ {
@@ -132,7 +138,7 @@ func FSM(elevServerAddr string,
 		for floor := 0; floor < N_FLOORS; floor++ {
 			for button := 0; button < N_BUTTONS; button++ {
 				if elevio.ButtonType(button) != elevio.BT_Cab &&
-				elevator.CompletedOrders[floor][button] {
+					elevator.CompletedOrders[floor][button] {
 					completedOrder := OrderEvent{Floor: floor, Button: elevio.ButtonType(button)}
 					completedHallOrders = append(completedHallOrders, completedOrder)
 				}
@@ -228,18 +234,18 @@ func shouldOpenDoor(elev Elevator) bool {
 	switch elev.Dir {
 	case elevio.MD_Up:
 		shouldOpenDoor = elev.Orders[elev.Floor][elevio.BT_Cab] ||
-		elev.Orders[elev.Floor][elevio.BT_HallUp] ||
-		(!isOrderAbove(elev) && elev.Orders[elev.Floor][elevio.BT_HallDown])
+			elev.Orders[elev.Floor][elevio.BT_HallUp] ||
+			(!isOrderAbove(elev) && elev.Orders[elev.Floor][elevio.BT_HallDown])
 
 	case elevio.MD_Down:
 		shouldOpenDoor = elev.Orders[elev.Floor][elevio.BT_Cab] ||
-		elev.Orders[elev.Floor][elevio.BT_HallDown] ||
-		(!isOrderBelow(elev) && elev.Orders[elev.Floor][elevio.BT_HallUp])
+			elev.Orders[elev.Floor][elevio.BT_HallDown] ||
+			(!isOrderBelow(elev) && elev.Orders[elev.Floor][elevio.BT_HallUp])
 
 	case elevio.MD_Stop:
 		shouldOpenDoor = elev.Orders[elev.Floor][elevio.BT_Cab] ||
-		elev.Orders[elev.Floor][elevio.BT_HallUp] ||
-		elev.Orders[elev.Floor][elevio.BT_HallDown]
+			elev.Orders[elev.Floor][elevio.BT_HallUp] ||
+			elev.Orders[elev.Floor][elevio.BT_HallDown]
 	}
 	return shouldOpenDoor
 }

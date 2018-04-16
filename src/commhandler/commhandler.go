@@ -282,7 +282,7 @@ func Launch(thisID string, commonPort int,
 				allOrders[order.ID] = createStampedOrder(order, ACKWAIT_COMPLETE)
 				allOrders[order.ID].OrderMsg.SenderID = thisID
 			} else {
-				Info.Printf("complete unknown order %v\n", order.ID)
+				//Info.Printf("complete unknown order %v\n", order.ID)
 			}
 
 		case msg := <-completeOrderRecvCh:
@@ -322,8 +322,15 @@ func Launch(thisID string, commonPort int,
 			updateHeartbeatCh <- heartbeat
 
 		case <-time.After(1000 * time.Millisecond):
-			// make sure that below actions are processed regularly
-			//Info.Printf("all: %+v\n", allOrders)
+		// make sure that below actions are processed regularly
+		//Info.Printf("all: %+v\n", allOrders)
+		case <-time.After(10 * time.Second):
+			var allOrderSlice []msgs.OrderMsg
+			for _, stampedOrder := range allOrders {
+				allOrderSlice = append(allOrderSlice, stampedOrder.OrderMsg)
+			}
+			Info.Printf("all orders: %+v\n", allOrderSlice)
+
 		}
 
 		// actions that happen on every update
