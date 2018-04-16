@@ -47,7 +47,7 @@ Tests:z
     - Elevator/Network for one module down
     - Elevator/Network for one module down temporarily and then comes back
     - Kill program and start again
-    - Block elevator manually: By pressing button and holding elevator
+    - Block elevator manually:cvxz By pressing button and holding elevator
     - Disregarded orders:
           If placed order is disregarded more than X times after T seconds
           (no acks received), then this elevator takes order.
@@ -60,6 +60,7 @@ CODE REVIEW:
   When defyning struct variables use {..., VariableMemberName: VariableMemberValue, ...}
   Review how lights are updated
   Channel names
+  Revise Order of inputs in the module
 
   main: XYZOrderMsg type ->
 

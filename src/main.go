@@ -42,17 +42,17 @@ func main() {
 	updateLightsCh := nbc.New()    //make(chan [N_FLOORS][N_BUTTONS]bool)
 
 	// Channels: OrderHandler -> Network
-	broadcastTakeOrderCh := nbc.New()    //make(chan msgs.TakeOrderMsg)
+	assignOrderWriteCh := nbc.New()    //make(chan msgs.TakeOrderMsg)
 	placedOrderCh := nbc.New()           //make(chan msgs.Order)
 	completedOrderCh := nbc.New()        //make(chan msgs.Order)
 	thisElevatorHeartbeatCh := nbc.New() //make(chan msgs.Heartbeat)
 
 	// Channels: Network -> OrderHandler
 	allElevatorsHeartbeatCh := nbc.New()   //make(chan []msgs.Heartbeat)
-	safeOrderCh := nbc.New()               //make(chan msgs.SafeOrderMsg)
-	thisTakeOrderCh := nbc.New()           //make(chan msgs.TakeOrderMsg)
+	redundantOrderCh := nbc.New()               //make(chan msgs.SafeOrderMsg)
+	assignOrderReadCh := nbc.New()           //make(chan msgs.TakeOrderMsg)
 	downedElevatorsCh := nbc.New()         //make(chan []msgs.Heartbeat)
-	completedOrderOtherElevCh := nbc.New() //make(chan msgs.Order)
+	completedHallOrderOtherElevCh := nbc.New() //make(chan msgs.Order)
 
 	// Channels: Network -> FSM
 	// (none)
@@ -62,16 +62,16 @@ func main() {
 
 	go commhandler.Launch(*id_ptr, *commonPort_ptr,
 		thisElevatorHeartbeatCh, downedElevatorsCh, placedOrderCh,
-		broadcastTakeOrderCh, completedOrderCh,
-		allElevatorsHeartbeatCh, thisTakeOrderCh, safeOrderCh,
-		completedOrderOtherElevCh, &wg)
+		assignOrderWriteCh, completedOrderCh,
+		allElevatorsHeartbeatCh, assignOrderReadCh, redundantOrderCh,
+		completedHallOrderOtherElevCh, &wg)
 
 	go orderhandler.OrderHandler(*id_ptr,
-		elevatorStatusCh, allElevatorsHeartbeatCh, placedHallOrderCh,
-		safeOrderCh, thisTakeOrderCh, downedElevatorsCh,
-		completedHallOrdersThisElevCh, completedOrderOtherElevCh,
-		addHallOrderCh, broadcastTakeOrderCh, placedOrderCh, deleteHallOrderCh,
-		completedOrderCh, thisElevatorHeartbeatCh, updateLightsCh, &wg)
+		placedHallOrderCh, redundantOrderCh, assignOrderReadCh,
+		completedHallOrdersThisElevCh, completedHallOrderOtherElevCh,
+		downedElevatorsCh, elevatorStatusCh, allElevatorsHeartbeatCh,
+		placedOrderCh, assignOrderWriteCh, addHallOrderCh, completedOrderCh,
+		deleteHallOrderCh, thisElevatorHeartbeatCh, updateLightsCh, &wg)
 
 	go fsm.FSM(*elevServerAddr_ptr, addHallOrderCh, deleteHallOrderCh,
 		updateLightsCh, placedHallOrderCh, completedHallOrdersThisElevCh,
