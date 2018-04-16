@@ -8,7 +8,9 @@ Project for the NTNU course Real-time Programming TTK4145 (spring 2018).
 * UDP broadcasting based communication protocol with reliable transmission mechanisms in application layer.
 * Automatic order transfers
 * Support for 255 networked cooperating elevators
-* Master-Slave relationship on per-order basis. 
+* Master-Slave relationship on per-order basis.
+* Order distribution minimizes overall completion time
+
 
 ## Quickstart
 Make sure to have all prerequisites listed before getting started. 
