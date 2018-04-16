@@ -88,6 +88,8 @@ func FSM(elevServerAddr string,
 
 		case msg, _ := <-deleteHallOrderCh.Recv:
 			hallOrder := msg.(OrderEvent)
+			Info.Printf("delete hall order %+v\n", hallOrder)
+
 			clearOrder(&elevator, hallOrder.Button, true)
 			elevator.CompletedOrders[hallOrder.Floor][hallOrder.Button] = false //necessary ???
 			if elevator.State == ST_DoorOpen {

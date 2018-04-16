@@ -177,7 +177,6 @@ func OrderHandler(thisID string,
 
 				//} else {
 
-				//	// TODO: this triggers for all cab calls
 				if completedOrder.Button != elevio.BT_Cab {
 					completedOrderCh.Send <- msgs.Order{ID: orderID, Floor: completedOrder.Floor, Type: completedOrder.Button}
 					//Info.Println("warn: completed non-taken order")
@@ -230,17 +229,7 @@ func OrderHandler(thisID string,
 				updateLights[acceptedOrder.Floor][acceptedOrder.Type] = true
 			}
 
-			if len(updateLights) > 0 {
-				updateLightsCh.Send <- updateLights
-			}
-
-			// debug
-
-			//var elevatorIDList []string
-			//for id, _ := range elevators {
-			//	elevatorIDList = append(elevatorIDList, id)
-			//}
-			//Info.Println("elevators: %v\n", elevatorIDList)
+			updateLightsCh.Send <- updateLights
 
 		case <-time.After(15 * time.Second):
 			// an (empty) event every second, avoids some forms of locking
