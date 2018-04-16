@@ -32,8 +32,8 @@ func main() {
 	wg.Add(3)
 
 	// Channels: FSM -> OrderHandler
-	elevatorStatusCh := nbc.New()         //make(chan fsm.Elevator)
-	placedHallOrderCh := nbc.New()        //make(chan fsm.OrderEvent)
+	elevatorStatusCh := nbc.New()              //make(chan fsm.Elevator)
+	placedHallOrderCh := nbc.New()             //make(chan fsm.OrderEvent)
 	completedHallOrdersThisElevCh := nbc.New() //make(chan []fsm.OrderEvent)
 
 	// Channels: OrderHandler -> FSM
@@ -42,16 +42,16 @@ func main() {
 	updateLightsCh := nbc.New()    //make(chan [N_FLOORS][N_BUTTONS]bool)
 
 	// Channels: OrderHandler -> Network
-	assignOrderWriteCh := nbc.New()    //make(chan msgs.TakeOrderMsg)
+	assignOrderWriteCh := nbc.New()      //make(chan msgs.TakeOrderMsg)
 	placedOrderCh := nbc.New()           //make(chan msgs.Order)
 	completedOrderCh := nbc.New()        //make(chan msgs.Order)
 	thisElevatorHeartbeatCh := nbc.New() //make(chan msgs.Heartbeat)
 
 	// Channels: Network -> OrderHandler
-	allElevatorsHeartbeatCh := nbc.New()   //make(chan []msgs.Heartbeat)
-	redundantOrderCh := nbc.New()               //make(chan msgs.SafeOrderMsg)
-	assignOrderReadCh := nbc.New()           //make(chan msgs.TakeOrderMsg)
-	downedElevatorsCh := nbc.New()         //make(chan []msgs.Heartbeat)
+	allElevatorsHeartbeatCh := nbc.New()       //make(chan []msgs.Heartbeat)
+	redundantOrderCh := nbc.New()              //make(chan msgs.SafeOrderMsg)
+	assignOrderReadCh := nbc.New()             //make(chan msgs.TakeOrderMsg)
+	downedElevatorsCh := nbc.New()             //make(chan []msgs.Heartbeat)
 	completedHallOrderOtherElevCh := nbc.New() //make(chan msgs.Order)
 
 	// Channels: Network -> FSM
@@ -60,7 +60,7 @@ func main() {
 	// FSM -> Network
 	// (none)
 
-	go commhandler.Launch(*id_ptr, *commonPort_ptr,
+	go commhandler.CommHandler(*id_ptr, *commonPort_ptr,
 		thisElevatorHeartbeatCh, downedElevatorsCh, placedOrderCh,
 		assignOrderWriteCh, completedOrderCh,
 		allElevatorsHeartbeatCh, assignOrderReadCh, redundantOrderCh,
@@ -73,9 +73,10 @@ func main() {
 		placedOrderCh, assignOrderWriteCh, addHallOrderCh, completedOrderCh,
 		deleteHallOrderCh, thisElevatorHeartbeatCh, updateLightsCh, &wg)
 
-	go fsm.FSM(*elevServerAddr_ptr, addHallOrderCh, deleteHallOrderCh,
-		updateLightsCh, placedHallOrderCh, completedHallOrdersThisElevCh,
-		elevatorStatusCh, &wg)
+	go fsm.FSM(*elevServerAddr_ptr,
+		addHallOrderCh, deleteHallOrderCh, updateLightsCh,
+		placedHallOrderCh, completedHallOrdersThisElevCh, elevatorStatusCh,
+		&wg)
 
 	for {
 		select {}

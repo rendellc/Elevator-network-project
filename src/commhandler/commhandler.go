@@ -128,7 +128,7 @@ func checkAndRetransmit(allOrders map[int]*StampedOrder, orderID int, thisID str
 	}
 }
 
-func Launch(thisID string, commonPort int,
+func CommHandler(thisID string, commonPort int,
 	/* read */
 	elevatorStatusCh *nbc.NonBlockingChan,
 	downedElevatorsCh *nbc.NonBlockingChan,

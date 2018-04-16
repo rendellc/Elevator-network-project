@@ -62,9 +62,9 @@ func OrderHandler(thisID string,
 			placedOrder_commhandlerCh.Send <- order
 
 		case msg, _ := <-redundantOrder_commhandlerCh.Recv:
-			order := msg.(msgs.SafeOrderMsg)
+			orderMsg := msg.(msgs.SafeOrderMsg)
 
-			if order, exists := placedOrders[order.Order.ID]; exists {
+			if order, exists := placedOrders[orderMsg.Order.ID]; exists {
 				acceptedOrders[order.ID] = order
 
 				// calculate scores
@@ -94,14 +94,14 @@ func OrderHandler(thisID string,
 						Button: order.Type, TurnLightOn: true}
 				}
 			} else {
-				Info.Println("redundantOrder_commhandlerCh: order didn't exist")
+				Info.Print("redundant order %v didn't exist\n", orderMsg.Order.ID)
 			}
 
 		case msg, _ := <-assignOrderRead_commhandlerCh.Recv:
 			order := msg.(msgs.TakeOrderMsg)
 
 			if order.SenderID == thisID {
-				Info.Printf("assignOrderRead_commhandlerCh: assigned order to itself: %v\n", order)
+				Info.Printf("assigned order to itself: %v\n", order)
 				addHallOrder_fsmCh.Send <- fsm.OrderEvent{Floor: order.Order.Floor,
 					Button: order.Order.Type, TurnLightOn: true}
 			} else {
