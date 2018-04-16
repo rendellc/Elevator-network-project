@@ -124,7 +124,7 @@ func FSM(elevServerAddr string,
 			updateLights := msg.([N_FLOORS][N_BUTTONS]bool)
 			for floor := 0; floor < N_FLOORS; floor++ {
 				for button := 0; button < N_BUTTONS; button++ {
-					if elevio.ButtonType(button) != elevio.BT_Cab {
+					if elevio.ButtonType(button) != elevio.BT_Cab &&
 						!(floor == N_FLOORS-1 && elevio.ButtonType(button) == elevio.BT_HallUp) &&
 						!(floor == 0 && elevio.ButtonType(button) == elevio.BT_HallDown) {
 						elevator.Lights[floor][button] = updateLights[floor][button]

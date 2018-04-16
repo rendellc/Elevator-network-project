@@ -32,8 +32,8 @@ func main() {
 	wg.Add(3)
 
 	// Channels: FSM -> OrderHandler
-	elevatorStatusCh := nbc.New()         //make(chan fsm.Elevator)
-	placedHallOrderCh := nbc.New()        //make(chan fsm.OrderEvent)
+	elevatorStatusCh := nbc.New()              //make(chan fsm.Elevator)
+	placedHallOrderCh := nbc.New()             //make(chan fsm.OrderEvent)
 	completedHallOrdersThisElevCh := nbc.New() //make(chan []fsm.OrderEvent)
 
 	// Channels: OrderHandler -> FSM
@@ -60,7 +60,7 @@ func main() {
 	// FSM -> Network
 	// (none)
 
-	go commhandler.Launch(*id_ptr, *commonPort_ptr,
+	go commhandler.CommHandler(*id_ptr, *commonPort_ptr,
 		thisElevatorHeartbeatCh, downedElevatorsCh, placedOrderCh,
 		assignOrderCh, completedOrderCh,
 		allElevatorsHeartbeatCh, takeOrderCh, redundantOrderCh,
@@ -73,9 +73,10 @@ func main() {
 		placedOrderCh, assignOrderCh, addHallOrderCh, completedOrderCh,
 		deleteHallOrderCh, thisElevatorHeartbeatCh, updateLightsCh, &wg)
 
-	go fsm.FSM(*elevServerAddr_ptr, addHallOrderCh, deleteHallOrderCh,
-		updateLightsCh, placedHallOrderCh, completedHallOrdersThisElevCh,
-		elevatorStatusCh, &wg)
+	go fsm.FSM(*elevServerAddr_ptr,
+		addHallOrderCh, deleteHallOrderCh, updateLightsCh,
+		placedHallOrderCh, completedHallOrdersThisElevCh, elevatorStatusCh,
+		&wg)
 
 	for {
 		select {}

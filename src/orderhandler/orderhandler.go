@@ -8,7 +8,6 @@ import (
 	"log"
 	"os"
 	"sync"
-	"time"
 )
 
 var Info *log.Logger
@@ -65,7 +64,7 @@ func OrderHandler(thisID string,
 		case msg, _ := <-redundantOrder_commhandlerCh.Recv:
 			order := msg.(msgs.RedundantOrderMsg)
 
-			if order, exists := placedOrders[order.Order.ID]; exists {
+			if order, exists := placedOrders[orderMsg.Order.ID]; exists {
 				acceptedOrders[order.ID] = order
 
 				// calculate scores
@@ -95,7 +94,7 @@ func OrderHandler(thisID string,
 						Button: order.Type, TurnLightOn: true}
 				}
 			} else {
-				Info.Println("redundantOrder_commhandlerCh: order didn't exist")
+				Info.Print("redundant order %v didn't exist\n", orderMsg.Order.ID)
 			}
 
 		case msg, _ := <-takeOrder_commhandlerCh.Recv:
@@ -218,7 +217,7 @@ func OrderHandler(thisID string,
 							chosenElevatorTakenOrder := chosenElevatorHeartbeat.TakenOrders
 							chosenElevatorStatus := chosenElevatorHeartbeat.Status
 							if _, exists := chosenElevatorTakenOrder[acceptedOrder.ID]; exists &&
-							 chosenElevatorStatus.Orders[acceptedOrder.Floor][acceptedOrder.Type] {
+								chosenElevatorStatus.Orders[acceptedOrder.Floor][acceptedOrder.Type] {
 								updateLights[acceptedOrder.Floor][acceptedOrder.Type] = true
 								break
 							}
