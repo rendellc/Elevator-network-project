@@ -25,7 +25,7 @@ Connect to the elevator software with
 ./elevator.out -id=1 -addr="localhost:20011"
 ```
 ## Flags
-* `-id=n` required int in range 0-255 
+* `-id=n` number in range 0-255 (required)
 * `[-addr="IP-address:port"]` elevator is running on. Defaults to "localhost:15657" when unspecified
 * `[-bport=m]` Port which all elevators will broadcast on. Defaults to 20010 when unspecified
 
