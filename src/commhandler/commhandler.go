@@ -109,8 +109,8 @@ func checkAndRetransmit(allOrders map[int]*StampedOrder, orderID int, thisID str
 							Order:      stampedOrder.OrderMsg.Order}
 
 						allOrders[orderID] = createStampedOrder(stampedOrder.OrderMsg.Order, SERVING)
-
 					}
+
 				case ACKWAIT_TAKE:
 					safeOrderCh.Send <- msgs.SafeOrderMsg{SenderID: thisID,
 						ReceiverID: thisID,
@@ -190,10 +190,11 @@ func Launch(thisID string, commonPort int,
 			order := msg.(msgs.Order)
 
 			if orderStamped, exists := allOrders[order.ID]; exists {
-				Info.Printf("existing order placed: state %v %v\n", orderStamped.OrderState, ACKWAIT_PLACED)
+				Info.Printf("existing order placed: state %v\n", orderStamped.OrderState)
 
 				if orderStamped.OrderState == ACKWAIT_PLACED {
 					Info.Printf("unacked order %v placed again %v\n", orderStamped.OrderMsg.Order.ID, orderStamped.PlacedCount)
+					orderStamped.TimeStamp = time.Now()
 					orderStamped.TransmitCount = 1
 					orderStamped.PlacedCount += 1
 				}
@@ -276,9 +277,8 @@ func Launch(thisID string, commonPort int,
 
 			if _, exists := allOrders[order.ID]; exists {
 				Info.Printf("(from orderhandler) completedOrderCh: %v\n", order)
-				//TODO:uncomment!
-				//completeOrderSendCh <- msgs.CompleteOrderMsg{SenderID: thisID,
-				//	Order: order}
+				completeOrderSendCh <- msgs.CompleteOrderMsg{SenderID: thisID,
+					Order: order}
 				allOrders[order.ID] = createStampedOrder(order, ACKWAIT_COMPLETE)
 				allOrders[order.ID].OrderMsg.SenderID = thisID
 			} else {
