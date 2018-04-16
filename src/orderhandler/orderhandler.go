@@ -15,7 +15,6 @@ import (
 var Info *log.Logger
 
 func createOrderID(floor int, button elevio.ButtonType, num_floors int) int {
-	//elevIDint, _ := strconv.Atoi(elevID)
 	return num_floors*int(button) + floor
 }
 
@@ -40,14 +39,13 @@ func OrderHandler(thisID string,
 	/* Sync */
 	wg *sync.WaitGroup) {
 
-	Info = log.New(os.Stdout, "[orderhandler]: ", 0)
-
 	placedOrders := make(map[int]msgs.Order)       // all placed placedOrders at this elevator
 	acceptedOrders := make(map[int]msgs.Order)     // set of accepted orderIDs
 	chosenElevatorForOrder := make(map[int]string) // set of elevatorID for an acceptedOrder
 	takenOrders := make(map[int]msgs.Order)        // set of order this elevator will take
-	elevators := make(map[string]msgs.Heartbeat)   //storage of all heartbeats
+	elevators := make(map[string]msgs.Heartbeat)   // storage of all heartbeats
 
+	Info = log.New(os.Stdout, "[orderhandler]: ", 0)
 	// Wait until all modules are initialized
 	wg.Done()
 	Info.Println("initialized")
@@ -233,7 +231,6 @@ func OrderHandler(thisID string,
 			// update lights: Using elevators or allElevatorsHeartbeat ???
 			for _, elevatorHeartbeat := range allElevatorsHeartbeat {
 				for _, acceptedOrder := range elevatorHeartbeat.AcceptedOrders {
-/*
 					chosenElevatorID := elevatorHeartbeat.ChosenElevatorForOrder[acceptedOrder.ID]
 					// find heartbeat for chosenElevatorID in allElevatorsHeartbeat
 					elevatorWithIDFound := false
@@ -278,14 +275,14 @@ func OrderHandler(thisID string,
 						fmt.Println("         Order: \v", acceptedOrder)
 						fmt.Println("         Master: \v", elevatorHeartbeat.SenderID)
 						fmt.Println("         Slave: \v", chosenElevatorID)
-					}*/
-					updateLights[acceptedOrder.Floor][acceptedOrder.Type] = true
+					}
+					//updateLights[acceptedOrder.Floor][acceptedOrder.Type] = true
 				}
 			}
 			// lights from this elevator
-			for _, acceptedOrder := range acceptedOrders {
-				updateLights[acceptedOrder.Floor][acceptedOrder.Type] = true
-			}
+			//for _, acceptedOrder := range acceptedOrders {
+				//updateLights[acceptedOrder.Floor][acceptedOrder.Type] = true
+			//}
 
 			updateLightsCh.Send <- updateLights
 

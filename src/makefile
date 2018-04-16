@@ -1,5 +1,5 @@
 FLAGS=-v -race
 EXEC=elevator.out
 
-../${EXEC}: $(filter-out $(EXEC),$(wildcard *))
+${EXEC}: $(wildcard *)
 	go build -o $@ -v -race

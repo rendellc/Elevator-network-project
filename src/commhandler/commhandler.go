@@ -58,7 +58,7 @@ func createStampedOrder(order msgs.Order, os OrderState) *StampedOrder {
 		OrderMsg:      msgs.OrderMsg{Order: order}}
 }
 
-const ackwaitTimeout = 300 * time.Millisecond
+const ackwaitTimeout = 100 * time.Millisecond
 const placeAgainTimeIncrement = 10 * time.Second
 const otherGiveupTime = 40 * time.Second
 const retransmitCountMax = 5       // number of times to retransmit if no ack is recieved
@@ -102,7 +102,7 @@ func checkAndRetransmit(allOrders map[int]*StampedOrder, orderID int, thisID str
 				switch stampedOrder.OrderState {
 				case ACKWAIT_PLACED:
 					if stampedOrder.PlacedCount >= placedGiveupAndTakeTries {
-						Info.Printf("%v retransmit failed %v times\n", orderID, stampedOrder.PlacedCount)
+						Info.Printf("%v retransmit (ackplaced) failed %v times\n", orderID, stampedOrder.PlacedCount)
 
 						safeOrderCh.Send <- msgs.SafeOrderMsg{SenderID: thisID,
 							ReceiverID: thisID,
@@ -112,12 +112,16 @@ func checkAndRetransmit(allOrders map[int]*StampedOrder, orderID int, thisID str
 					}
 
 				case ACKWAIT_TAKE:
-					Info.Printf("%v retransmit failed. Take it\n", orderID)
+					Info.Printf("%v retransmit (acktake) failed. Take it\n", orderID)
 					thisTakeOrderCh.Send <- msgs.TakeOrderMsg{SenderID: thisID,
 						ReceiverID: thisID,
 						Order:      stampedOrder.OrderMsg.Order}
 
 					allOrders[orderID] = createStampedOrder(stampedOrder.OrderMsg.Order, SERVING)
+				case ACKWAIT_COMPLETE:
+					Info.Printf("%v retransmit (ackcomplete) failed. Order deleted.\n", orderID)
+					delete(allOrders, stampedOrder.OrderMsg.Order.ID)
+
 				}
 			}
 		}

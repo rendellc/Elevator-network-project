@@ -43,7 +43,7 @@ Questions to Studass:
   Is OK to print to the terminal ?
   How should we run the code on other computers ?
 
-Tests:
+Tests:z
     - Elevator/Network for one module down
     - Elevator/Network for one module down temporarily and then comes back
     - Kill program and start again
