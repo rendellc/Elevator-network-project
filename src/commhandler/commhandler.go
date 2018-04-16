@@ -89,7 +89,8 @@ func checkAndRetransmit(allOrders map[int]*StampedOrder, orderID int, thisID str
 						Order:      stampedOrder.OrderMsg.Order}
 				case ACKWAIT_COMPLETE:
 					Info.Printf("retransmitting complete for order %+v time %v\n", stampedOrder.OrderMsg.Order.ID, stampedOrder.TransmitCount)
-					completeOrderSendCh <- msgs.CompleteOrderMsg{SenderID: thisID,
+					orderMasterID := stampedOrder.OrderMsg.SenderID
+					completeOrderSendCh <- msgs.CompleteOrderMsg{SenderID: thisID, ReceiverID: orderMasterID,
 						Order: stampedOrder.OrderMsg.Order}
 				case SERVING:
 				case SAFE:
@@ -201,6 +202,7 @@ func Launch(thisID string, commonPort int,
 			} else {
 				//Info.Println("new order in ACKWAIT_PLACED")
 				allOrders[order.ID] = createStampedOrder(order, ACKWAIT_PLACED)
+				allOrders[order.ID].OrderMsg.SenderID = thisID
 			}
 
 			placedOrderSendCh <- msgs.PlacedOrderMsg{SenderID: thisID, Order: order}
@@ -240,6 +242,8 @@ func Launch(thisID string, commonPort int,
 
 			if msg.ReceiverID == thisID {
 				allOrders[msg.Order.ID] = createStampedOrder(msg.Order, SERVING)
+				allOrders[msg.Order.ID].OrderMsg.SenderID = msg.SenderID
+
 				Info.Printf("this elevator takes order %v\n", msg.Order.ID)
 				thisTakeOrderCh.Send <- msg
 
@@ -305,6 +309,7 @@ func Launch(thisID string, commonPort int,
 				if stampedOrder, exists := allOrders[msg.Order.ID]; exists {
 					if stampedOrder.OrderState == ACKWAIT_COMPLETE {
 						Info.Printf("complete order ack for %v from %v\n", msg.Order, msg.SenderID)
+						delete(allOrders, msg.Order.ID)
 					} else {
 						//Info.Printf("not expecting complete ack for order %v, state: %v\n", msg.Order, allOrders[msg.Order.ID].OrderState)
 					}
@@ -312,7 +317,6 @@ func Launch(thisID string, commonPort int,
 					//Info.Printf("order %v from %v to %v not in allOrders\n", msg.Order, msg.SenderID, msg.ReceiverID)
 				}
 
-				delete(allOrders, msg.Order.ID)
 			}
 
 		case msg, _ := <-elevatorStatusCh.Recv:
@@ -360,18 +364,15 @@ func Launch(thisID string, commonPort int,
 
 		for orderID, stampedOrder := range allOrders {
 			// check if order should be given up on
-			switch stampedOrder.OrderState {
-			default:
-				if time.Since(stampedOrder.TimeStamp) > otherGiveupTime {
-					Info.Printf("complete not recieved for %v\n", orderID)
+			if time.Since(stampedOrder.TimeStamp) > otherGiveupTime {
+				Info.Printf("complete not recieved for %v\n", orderID)
 
-					msg := msgs.TakeOrderMsg{SenderID: thisID,
-						ReceiverID: thisID,
-						Order:      allOrders[orderID].OrderMsg.Order}
+				msg := msgs.TakeOrderMsg{SenderID: thisID,
+					ReceiverID: thisID,
+					Order:      allOrders[orderID].OrderMsg.Order}
 
-					thisTakeOrderCh.Send <- msg
-					allOrders[orderID] = createStampedOrder(stampedOrder.OrderMsg.Order, SERVING)
-				}
+				thisTakeOrderCh.Send <- msg
+				allOrders[orderID] = createStampedOrder(stampedOrder.OrderMsg.Order, SERVING)
 			}
 		}
 	}
