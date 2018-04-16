@@ -111,6 +111,7 @@ func checkAndRetransmit(allOrders map[int]*StampedOrder, orderID int, thisID str
 					}
 
 				case ACKWAIT_TAKE:
+					Info.Printf("%v retransmit failed. Take it\n", orderID)
 					thisTakeOrderCh.Send <- msgs.TakeOrderMsg{SenderID: thisID,
 						ReceiverID: thisID,
 						Order:      stampedOrder.OrderMsg.Order}
@@ -294,9 +295,9 @@ func Launch(thisID string, commonPort int,
 
 				Info.Printf("order %v completed by %v\n", msg.Order, msg.SenderID)
 				completedOrderOtherElevCh.Send <- msg.Order
-			}
 
-			delete(allOrders, msg.Order.ID)
+				delete(allOrders, msg.Order.ID)
+			}
 
 		case msg := <-completeOrderAckRecvCh:
 
