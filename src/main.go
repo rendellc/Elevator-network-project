@@ -64,19 +64,18 @@ func main() {
 		thisElevatorHeartbeatCh, downedElevatorsCh, placedOrderCh,
 		broadcastTakeOrderCh, completedOrderCh,
 		allElevatorsHeartbeatCh, thisTakeOrderCh, safeOrderCh,
-		completedOrderOtherElevCh,
-		&wg)
+		completedOrderOtherElevCh, &wg)
 
 	go orderhandler.OrderHandler(*id_ptr,
-		elevatorStatusCh, allElevatorsHeartbeatCh, placedHallOrderCh, safeOrderCh,
-		thisTakeOrderCh, downedElevatorsCh, completedHallOrdersThisElevCh,
-		completedOrderOtherElevCh,
+		elevatorStatusCh, allElevatorsHeartbeatCh, placedHallOrderCh,
+		safeOrderCh, thisTakeOrderCh, downedElevatorsCh,
+		completedHallOrdersThisElevCh, completedOrderOtherElevCh,
 		addHallOrderCh, broadcastTakeOrderCh, placedOrderCh, deleteHallOrderCh,
-		completedOrderCh, thisElevatorHeartbeatCh, updateLightsCh,
-		&wg)
+		completedOrderCh, thisElevatorHeartbeatCh, updateLightsCh, &wg)
 
-	go fsm.FSM(*elevServerAddr_ptr, addHallOrderCh, deleteHallOrderCh, updateLightsCh,
-		placedHallOrderCh, completedHallOrdersThisElevCh, elevatorStatusCh, &wg)
+	go fsm.FSM(*elevServerAddr_ptr, addHallOrderCh, deleteHallOrderCh,
+		updateLightsCh, placedHallOrderCh, completedHallOrdersThisElevCh,
+		elevatorStatusCh, &wg)
 
 	for {
 		select {}
