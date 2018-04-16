@@ -21,7 +21,7 @@ func OrderHandler(thisID string,
 	/* Read channels */
 	placedHallOrder_fsmCh *nbc.NonBlockingChan,
 	redundantOrder_commhandlerCh *nbc.NonBlockingChan,
-	assignOrderRead_commhandlerCh *nbc.NonBlockingChan,
+	takeOrder_commhandlerCh *nbc.NonBlockingChan,
 	completedHallOrdersThisElev_fsmCh *nbc.NonBlockingChan,
 	completedHallOrderOtherElevCh *nbc.NonBlockingChan,
 	downedElevators_commhandlerCh *nbc.NonBlockingChan,
@@ -29,7 +29,7 @@ func OrderHandler(thisID string,
 	allElevatorsHeartbeat_commhandlerCh *nbc.NonBlockingChan,
 	/* Write channels */
 	placedOrder_commhandlerCh *nbc.NonBlockingChan,
-	assignOrderWrite_commhandlerCh *nbc.NonBlockingChan,
+	assignOrder_commhandlerCh *nbc.NonBlockingChan,
 	addHallOrder_fsmCh *nbc.NonBlockingChan,
 	completedOrder_commhandlerCh *nbc.NonBlockingChan,
 	deleteHallOrder_fsmCh *nbc.NonBlockingChan,
@@ -54,16 +54,16 @@ func OrderHandler(thisID string,
 	for {
 		select {
 
-		case msg, _ := <- placedHallOrder_fsmCh.Recv:
+		case msg, _ := <-placedHallOrder_fsmCh.Recv:
 			buttonEvent := msg.(fsm.OrderEvent)
 
 			orderID := createOrderID(buttonEvent.Floor, buttonEvent.Button, fsm.N_FLOORS)
 			order := msgs.Order{ID: orderID, Floor: buttonEvent.Floor, Type: buttonEvent.Button}
 			placedOrders[orderID] = order
-			placedOrder_commhandlerCh.Send <- order
+			placedOrder_commhandlerCh.Send <-order
 
-		case msg, _ := <- redundantOrder_commhandlerCh.Recv:
-			order := msg.(msgs.SafeOrderMsg)
+		case msg, _ := <-redundantOrder_commhandlerCh.Recv:
+			order := msg.(msgs.RedundantOrderMsg)
 
 			if order, exists := placedOrders[order.Order.ID]; exists {
 				acceptedOrders[order.ID] = order
@@ -87,38 +87,38 @@ func OrderHandler(thisID string,
 				// broadcast
 				Info.Printf("elevator %v should take order %v\n", bestID, order.ID)
 				takeOrderMsg := msgs.TakeOrderMsg{SenderID: thisID, ReceiverID: bestID, Order: order}
-				assignOrderWrite_commhandlerCh.Send <- takeOrderMsg
+				assignOrder_commhandlerCh.Send <-takeOrderMsg
 
 				if bestID == thisID {
 					assignedOrders[order.ID] = order
-					addHallOrder_fsmCh.Send <- fsm.OrderEvent{Floor: order.Floor,
+					addHallOrder_fsmCh.Send <-fsm.OrderEvent{Floor: order.Floor,
 						Button: order.Type, TurnLightOn: true}
 				}
 			} else {
 				Info.Println("redundantOrder_commhandlerCh: order didn't exist")
 			}
 
-		case msg, _ := <- assignOrderRead_commhandlerCh.Recv:
+		case msg, _ := <-takeOrder_commhandlerCh.Recv:
 			order := msg.(msgs.TakeOrderMsg)
 
 			if order.SenderID == thisID {
-				Info.Printf("assignOrderRead_commhandlerCh: assigned order to itself: %v\n", order)
-				addHallOrder_fsmCh.Send <- fsm.OrderEvent{Floor: order.Order.Floor,
+				Info.Printf("takeOrder_commhandlerCh: assigned order to itself: %v\n", order)
+				addHallOrder_fsmCh.Send <-fsm.OrderEvent{Floor: order.Order.Floor,
 					Button: order.Order.Type, TurnLightOn: true}
 			} else {
-				addHallOrder_fsmCh.Send <- fsm.OrderEvent{Floor: order.Order.Floor,
+				addHallOrder_fsmCh.Send <-fsm.OrderEvent{Floor: order.Order.Floor,
 					Button: order.Order.Type, TurnLightOn: false}
 			}
 			assignedOrders[order.Order.ID] = order.Order
 
-		case msg, _ := <- completedHallOrdersThisElev_fsmCh.Recv:
+		case msg, _ := <-completedHallOrdersThisElev_fsmCh.Recv:
 			completedOrders := msg.([]fsm.OrderEvent)
 
 			// find and remove all equivalent placedOrders
 			for _, completedOrder := range completedOrders {
 				orderID := createOrderID(completedOrder.Floor, completedOrder.Button, fsm.N_FLOORS)
 
-				completedOrder_commhandlerCh.Send <- msgs.Order{ID: orderID, Floor: completedOrder.Floor, Type: completedOrder.Button}
+				completedOrder_commhandlerCh.Send <-msgs.Order{ID: orderID, Floor: completedOrder.Floor, Type: completedOrder.Button}
 				Info.Printf("completed order %v\n", orderID)
 
 				//delete order
@@ -128,7 +128,7 @@ func OrderHandler(thisID string,
 				delete(placedOrders, orderID)
 			}
 
-		case msg, _ := <- completedHallOrderOtherElevCh.Recv:
+		case msg, _ := <-completedHallOrderOtherElevCh.Recv:
 			completedOrder := msg.(msgs.Order)
 
 			for _, order := range placedOrders {
@@ -151,9 +151,9 @@ func OrderHandler(thisID string,
 				}
 			}
 
-			deleteHallOrder_fsmCh.Send <- fsm.OrderEvent{Floor: completedOrder.Floor, Button: completedOrder.Type}
+			deleteHallOrder_fsmCh.Send <-fsm.OrderEvent{Floor: completedOrder.Floor, Button: completedOrder.Type}
 
-		case msg, _ := <- downedElevators_commhandlerCh.Recv:
+		case msg, _ := <-downedElevators_commhandlerCh.Recv:
 			downedElevators := msg.([]msgs.Heartbeat)
 
 			for _, lastHeartbeat := range downedElevators {
@@ -162,18 +162,18 @@ func OrderHandler(thisID string,
 				// Add taken orders
 				for orderID, order := range lastHeartbeat.TakenOrders {
 					assignedOrders[orderID] = order
-					addHallOrder_fsmCh.Send <- fsm.OrderEvent{Floor: order.Floor, Button: order.Type, TurnLightOn: false}
+					addHallOrder_fsmCh.Send <-fsm.OrderEvent{Floor: order.Floor, Button: order.Type, TurnLightOn: false}
 				}
 				// Add accepted orders
 				for orderID, order := range lastHeartbeat.AcceptedOrders {
 					acceptedOrders[orderID] = order
 					chosenElevatorForOrder[orderID] = lastHeartbeat.ChosenElevatorForOrder[orderID]
-					addHallOrder_fsmCh.Send <- fsm.OrderEvent{Floor: order.Floor, Button: order.Type, TurnLightOn: true}
+					addHallOrder_fsmCh.Send <-fsm.OrderEvent{Floor: order.Floor, Button: order.Type, TurnLightOn: true}
 				}
 				delete(elevators, lastHeartbeat.SenderID)
 			}
 
-		case msg, _ := <- elevatorStatus_fsmCh.Recv:
+		case msg, _ := <-elevatorStatus_fsmCh.Recv:
 			elevatorStatus := msg.(fsm.Elevator)
 
 			// make deep copy of accepted and taken orders
@@ -199,15 +199,15 @@ func OrderHandler(thisID string,
 				ChosenElevatorForOrder: chosenElevatorForOrderDeepCopy,
 				TakenOrders:            takenOrdersDeepCopy}
 
-			thisElevatorHeartbeat_commhandlerCh.Send <- heartbeat
+			thisElevatorHeartbeat_commhandlerCh.Send <-heartbeat
 
-		case msg, _ := <- allElevatorsHeartbeat_commhandlerCh.Recv:
+		case msg, _ := <-allElevatorsHeartbeat_commhandlerCh.Recv:
 			allElevatorsHeartbeat := msg.([]msgs.Heartbeat)
 			// update elevators
 			for _, elevatorHeartbeat := range allElevatorsHeartbeat {
 				elevators[elevatorHeartbeat.SenderID] = elevatorHeartbeat
 			}
-			// update lights: allElevatorsHeartbeat
+			// update lights
 			var updateLights [fsm.N_FLOORS][fsm.N_BUTTONS]bool
 			for _, elevatorHeartbeat := range allElevatorsHeartbeat {
 				for _, acceptedOrder := range elevatorHeartbeat.AcceptedOrders {
@@ -226,7 +226,7 @@ func OrderHandler(thisID string,
 					}
 				}
 			}
-			updateLights_fsmCh.Send <- updateLights
+			updateLights_fsmCh.Send <-updateLights
 
 		}
 	}

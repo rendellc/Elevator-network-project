@@ -6,7 +6,7 @@ import (
 	"log"
 	"os"
 	"sync"
-	"time"	
+	"time"
 )
 
 var Info *log.Logger
@@ -70,22 +70,22 @@ func FSM(elevServerAddr string,
 	Info.Println("starting")
 
 	for {
-		elevatorStatus_orderhandlerCh.Send <- elevator
+		elevatorStatus_orderhandlerCh.Send <-elevator
 		select {
-		case buttonEvent := <- buttonCh:
+		case buttonEvent := <-buttonCh:
 			orderEvent := OrderEvent{Floor: buttonEvent.Floor, Button: buttonEvent.Button}
 			if buttonEvent.Button == elevio.BT_Cab {
 				orderEvent.TurnLightOn = true
 				fsmOnAddedOrder(&elevator, doorTimer, orderEvent)
 			} else {
-				placedHallOrder_orderhandlerCh.Send <- orderEvent
+				placedHallOrder_orderhandlerCh.Send <-orderEvent
 			}
 
-		case msg, _ := <- addHallOrder_orderhandlerCh.Recv:
+		case msg, _ := <-addHallOrder_orderhandlerCh.Recv:
 			hallOrder := msg.(OrderEvent)
 			fsmOnAddedOrder(&elevator, doorTimer, hallOrder)
 
-		case msg, _ := <- deleteHallOrder_orderhandlerCh.Recv:
+		case msg, _ := <-deleteHallOrder_orderhandlerCh.Recv:
 			hallOrder := msg.(OrderEvent)
 			clearOrder(&elevator, hallOrder.Button, true)
 			// hallOrder was not completed by this elevator. Hence,
@@ -96,7 +96,7 @@ func FSM(elevServerAddr string,
 				clearOrdersAtFloor(&elevator, true)
 			}
 
-		case elevator.Floor = <- floorSensorCh:
+		case elevator.Floor = <-floorSensorCh:
 			elevio.SetFloorIndicator(elevator.Floor)
 			if shouldOpenDoor(elevator) {
 				clearOrdersAtFloor(&elevator, true)
@@ -111,7 +111,7 @@ func FSM(elevServerAddr string,
 				}
 			}
 
-		case <- doorTimer.C:
+		case <-doorTimer.C:
 			elevio.SetDoorOpenLamp(false)
 			updateElevatorDirection(&elevator)
 			if elevator.Dir == elevio.MD_Stop {
@@ -120,7 +120,7 @@ func FSM(elevServerAddr string,
 				setStateToDrive(&elevator)
 			}
 
-		case msg, _ := <- updateLights_orderhandlerCh.Recv:
+		case msg, _ := <-updateLights_orderhandlerCh.Recv:
 			updateLights := msg.([N_FLOORS][N_BUTTONS]bool)
 			for floor := 0; floor < N_FLOORS; floor++ {
 				for button := 0; button < N_BUTTONS; button++ {
@@ -146,7 +146,7 @@ func FSM(elevServerAddr string,
 			}
 		}
 		if len(completedHallOrders) > 0 {
-			completedHallOrders_orderhandlerCh.Send <- completedHallOrders
+			completedHallOrders_orderhandlerCh.Send <-completedHallOrders
 			Info.Printf("completedHallOrders: %v", completedHallOrders)
 		}
 	}
@@ -159,7 +159,7 @@ func initializeState(elev *Elevator, floorSensorCh <-chan int) {
 		}
 	}
 	elevio.SetMotorDirection(elevio.MD_Down)
-	elev.Floor = <- floorSensorCh
+	elev.Floor = <-floorSensorCh
 	elev.Dir = elevio.MD_Stop
 	setStateToIdle(elev)
 	elevio.SetFloorIndicator(elev.Floor)

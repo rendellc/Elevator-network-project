@@ -23,7 +23,7 @@ type observation struct {
 }
 
 const interval = 100 * time.Millisecond
-const timeout = 2000 * time.Millisecond //50 * time.Millisecond
+const timeout = 2000 * time.Millisecond
 
 func Transmitter(port int, transmitEnable <-chan bool, statusCh <-chan msgs.Heartbeat) {
 
@@ -62,16 +62,16 @@ func Receiver(port int, peerUpdateCh chan<- PeerUpdate) {
 	var p PeerUpdate
 	lastSeen := make(map[string]observation)
 
-	conn := conn.DialBroadcastUDP(port) // TODO: error checking
+	conn := conn.DialBroadcastUDP(port)
 
 	for {
 		updated := false
 
 		conn.SetReadDeadline(time.Now().Add(interval))
-		n, _, _ := conn.ReadFrom(buf[0:]) //TODO: error checking
+		n, _, _ := conn.ReadFrom(buf[0:])
 		data := buf[:n]
 		var heartbeat msgs.Heartbeat
-		json.Unmarshal(data, &heartbeat) //TODO: error checking
+		json.Unmarshal(data, &heartbeat)
 
 		id := heartbeat.SenderID
 
@@ -79,7 +79,6 @@ func Receiver(port int, peerUpdateCh chan<- PeerUpdate) {
 		p.New = ""
 		if id != "" {
 			if _, idExists := lastSeen[id]; !idExists {
-				//fmt.Printf("[peers]: elevator %v discovered\n", id)
 				p.New = id
 				updated = true
 			} else if !reflect.DeepEqual(heartbeat, lastSeen[id].Heartbeat) {

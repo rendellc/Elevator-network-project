@@ -22,7 +22,7 @@ type PlacedOrderMsg OrderMsg
 type PlacedOrderAck OrderMsg
 type TakeOrderMsg OrderMsg
 type TakeOrderAck OrderMsg
-type SafeOrderMsg OrderMsg
+type RedundantOrderMsg OrderMsg
 type CompleteOrderMsg OrderMsg
 type CompleteOrderAck OrderMsg
 

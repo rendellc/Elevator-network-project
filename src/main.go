@@ -42,15 +42,15 @@ func main() {
 	updateLightsCh := nbc.New()    //make(chan [N_FLOORS][N_BUTTONS]bool)
 
 	// Channels: OrderHandler -> Network
-	assignOrderWriteCh := nbc.New()    //make(chan msgs.TakeOrderMsg)
+	assignOrderCh := nbc.New()    //make(chan msgs.TakeOrderMsg)
 	placedOrderCh := nbc.New()           //make(chan msgs.Order)
 	completedOrderCh := nbc.New()        //make(chan msgs.Order)
 	thisElevatorHeartbeatCh := nbc.New() //make(chan msgs.Heartbeat)
 
 	// Channels: Network -> OrderHandler
 	allElevatorsHeartbeatCh := nbc.New()   //make(chan []msgs.Heartbeat)
-	redundantOrderCh := nbc.New()               //make(chan msgs.SafeOrderMsg)
-	assignOrderReadCh := nbc.New()           //make(chan msgs.TakeOrderMsg)
+	redundantOrderCh := nbc.New()               //make(chan msgs.RedundantOrderMsg)
+	takeOrderCh := nbc.New()           //make(chan msgs.TakeOrderMsg)
 	downedElevatorsCh := nbc.New()         //make(chan []msgs.Heartbeat)
 	completedHallOrderOtherElevCh := nbc.New() //make(chan msgs.Order)
 
@@ -62,15 +62,15 @@ func main() {
 
 	go commhandler.Launch(*id_ptr, *commonPort_ptr,
 		thisElevatorHeartbeatCh, downedElevatorsCh, placedOrderCh,
-		assignOrderWriteCh, completedOrderCh,
-		allElevatorsHeartbeatCh, assignOrderReadCh, redundantOrderCh,
+		assignOrderCh, completedOrderCh,
+		allElevatorsHeartbeatCh, takeOrderCh, redundantOrderCh,
 		completedHallOrderOtherElevCh, &wg)
 
 	go orderhandler.OrderHandler(*id_ptr,
-		placedHallOrderCh, redundantOrderCh, assignOrderReadCh,
+		placedHallOrderCh, redundantOrderCh, takeOrderCh,
 		completedHallOrdersThisElevCh, completedHallOrderOtherElevCh,
 		downedElevatorsCh, elevatorStatusCh, allElevatorsHeartbeatCh,
-		placedOrderCh, assignOrderWriteCh, addHallOrderCh, completedOrderCh,
+		placedOrderCh, assignOrderCh, addHallOrderCh, completedOrderCh,
 		deleteHallOrderCh, thisElevatorHeartbeatCh, updateLightsCh, &wg)
 
 	go fsm.FSM(*elevServerAddr_ptr, addHallOrderCh, deleteHallOrderCh,
