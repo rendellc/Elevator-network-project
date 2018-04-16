@@ -111,7 +111,7 @@ func checkAndRetransmit(allOrders map[int]*StampedOrder, orderID int, thisID str
 					}
 
 				case ACKWAIT_TAKE:
-					thisTakeOrderCh.Send <- msgs.SafeOrderMsg{SenderID: thisID,
+					thisTakeOrderCh.Send <- msgs.TakeOrderMsg{SenderID: thisID,
 						ReceiverID: thisID,
 						Order:      stampedOrder.OrderMsg.Order}
 
