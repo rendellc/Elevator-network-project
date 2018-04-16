@@ -190,21 +190,16 @@ func Launch(thisID string, commonPort int,
 		case msg, _ := <-placedOrderCh.Recv:
 			order := msg.(msgs.Order)
 
-			if orderStamped, exists := allOrders[order.ID]; exists {
-				Info.Printf("existing order placed: state %v\n", orderStamped.OrderState)
-
-				if orderStamped.OrderState == ACKWAIT_PLACED {
-					Info.Printf("unacked order %v placed again %v\n", orderStamped.OrderMsg.Order.ID, orderStamped.PlacedCount)
-					orderStamped.TimeStamp = time.Now()
-					orderStamped.TransmitCount = 1
-					orderStamped.PlacedCount += 1
-				}
+			if orderStamped, exists := allOrders[order.ID]; exists && orderStamped.OrderState == ACKWAIT_PLACED {
+				Info.Printf("unacked order %v placed again %v\n", orderStamped.OrderMsg.Order.ID, orderStamped.PlacedCount)
+				orderStamped.TimeStamp = time.Now()
+				orderStamped.TransmitCount = 1
+				orderStamped.PlacedCount += 1
 			} else {
 				//Info.Println("new order in ACKWAIT_PLACED")
 				allOrders[order.ID] = createStampedOrder(order, ACKWAIT_PLACED)
 				allOrders[order.ID].OrderMsg.SenderID = thisID
 			}
-
 			placedOrderSendCh <- msgs.PlacedOrderMsg{SenderID: thisID, Order: order}
 
 		case msg := <-placedOrderAckRecvCh:
