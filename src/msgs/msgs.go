@@ -6,10 +6,10 @@ import (
 )
 
 type Order struct {
-	ID    int               `json:"order_id"`
-	assignedElevatorID String		`json:"assigned_elevator_id"`
-	Floor int               `json:"floor"`
-	Type  elevio.ButtonType `json:"button_type"`
+	ID                 int               `json:"order_id"`
+	assignedElevatorID string            `json:"assigned_elevator_id"`
+	Floor              int               `json:"floor"`
+	Type               elevio.ButtonType `json:"button_type"`
 }
 
 type OrderMsg struct {
