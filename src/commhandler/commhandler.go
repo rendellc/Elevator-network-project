@@ -66,7 +66,7 @@ const placedGiveupAndTakeTries = 3 // if no acks are recieved and user tries thi
 
 func checkAndRetransmit(allOrders map[int]*StampedOrder, orderID int, thisID string,
 	placedOrderSendCh chan<- msgs.PlacedOrderMsg, takeOrderSendCh chan<- msgs.TakeOrderMsg, completeOrderSendCh chan<- msgs.CompleteOrderMsg,
-	safeOrderCh *nbc.NonBlockingChan) {
+	thisTakeOrderCh *nbc.NonBlockingChan, safeOrderCh *nbc.NonBlockingChan) {
 
 	if stampedOrder, exists := allOrders[orderID]; !exists {
 		Info.Printf("check and retransmit for non-existent order\n")
@@ -89,7 +89,6 @@ func checkAndRetransmit(allOrders map[int]*StampedOrder, orderID int, thisID str
 						Order:      stampedOrder.OrderMsg.Order}
 				case ACKWAIT_COMPLETE:
 					Info.Printf("retransmitting complete for order %+v time %v\n", stampedOrder.OrderMsg.Order.ID, stampedOrder.TransmitCount)
-
 					completeOrderSendCh <- msgs.CompleteOrderMsg{SenderID: thisID,
 						Order: stampedOrder.OrderMsg.Order}
 				case SERVING:
@@ -112,7 +111,7 @@ func checkAndRetransmit(allOrders map[int]*StampedOrder, orderID int, thisID str
 					}
 
 				case ACKWAIT_TAKE:
-					safeOrderCh.Send <- msgs.SafeOrderMsg{SenderID: thisID,
+					thisTakeOrderCh.Send <- msgs.SafeOrderMsg{SenderID: thisID,
 						ReceiverID: thisID,
 						Order:      stampedOrder.OrderMsg.Order}
 
@@ -287,15 +286,15 @@ func Launch(thisID string, commonPort int,
 
 		case msg := <-completeOrderRecvCh:
 
-			// acknowledge completed order
-			completeOrderAckSendCh <- msgs.CompleteOrderAck{SenderID: thisID,
-				ReceiverID: msg.SenderID,
-				Order:      msg.Order}
+			if msg.SenderID != thisID {
+				// acknowledge completed order
+				completeOrderAckSendCh <- msgs.CompleteOrderAck{SenderID: thisID,
+					ReceiverID: msg.SenderID,
+					Order:      msg.Order}
 
-			//Info.Printf("complete order recv: %+v\n", msg.Order)
-
-			Info.Printf("complete forwarded: %v\n", msg.Order)
-			completedOrderOtherElevCh.Send <- msg.Order
+				Info.Printf("order %v completed by %v\n", msg.Order, msg.SenderID)
+				completedOrderOtherElevCh.Send <- msg.Order
+			}
 
 			delete(allOrders, msg.Order.ID)
 
@@ -319,9 +318,10 @@ func Launch(thisID string, commonPort int,
 			heartbeat := msg.(msgs.Heartbeat)
 
 			heartbeat.SenderID = thisID
+
 			updateHeartbeatCh <- heartbeat
 
-		case <-time.After(1000 * time.Millisecond):
+		//case <-time.After(1000 * time.Millisecond):
 		// make sure that below actions are processed regularly
 		//Info.Printf("all: %+v\n", allOrders)
 		case <-time.After(10 * time.Second):
@@ -336,7 +336,7 @@ func Launch(thisID string, commonPort int,
 		// actions that happen on every update
 		for orderID, stampedOrder := range allOrders {
 			// retransmission if necessary
-			checkAndRetransmit(allOrders, orderID, thisID, placedOrderSendCh, takeOrderSendCh, completeOrderSendCh, safeOrderCh)
+			checkAndRetransmit(allOrders, orderID, thisID, placedOrderSendCh, takeOrderSendCh, completeOrderSendCh, thisTakeOrderCh, safeOrderCh)
 			// TODO: verify that PlacedCount is incremented in the above function call
 			placeAgainDuration := time.Duration(stampedOrder.PlacedCount) * placeAgainTimeIncrement
 			deleteTime := stampedOrder.TimeStamp.Add(placeAgainDuration)

@@ -1,7 +1,6 @@
 package fsm
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"sync"
@@ -67,9 +66,9 @@ func FSM(elevServerAddr string,
 
 	// Wait until all modules are initialized
 	wg_ptr.Done()
-	fmt.Println("[fsm]: initialized")
+	Info.Println("initialized")
 	wg_ptr.Wait()
-	fmt.Println("[fsm]: starting")
+	Info.Println("starting")
 
 	for {
 		elevatorStatusCh.Send <- elevator
@@ -128,6 +127,7 @@ func FSM(elevServerAddr string,
 						!(floor == N_FLOORS-1 && elevio.ButtonType(button) == elevio.BT_HallUp) &&
 						!(floor == 0 && elevio.ButtonType(button) == elevio.BT_HallDown) { // necessary to check if button is valid
 						elevator.Lights[floor][button] = updateLights[floor][button]
+
 						elevio.SetButtonLamp(elevio.ButtonType(button), floor, elevator.Lights[floor][button])
 					}
 				}
@@ -146,7 +146,7 @@ func FSM(elevServerAddr string,
 			}
 		}
 		if len(completedHallOrders) > 0 {
-			//fmt.Printf("[fsm]: completedHallOrders: %v", completedHallOrders)
+			//Info.Printf("completedHallOrders: %v", completedHallOrders)
 			completedHallOrdersThisElevCh.Send <- completedHallOrders
 		}
 	}
