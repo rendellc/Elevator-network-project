@@ -214,13 +214,17 @@ func OrderHandler(thisID string,
 			allElevatorsHeartbeat := msg.([]msgs.Heartbeat)
 
 			var updateLights [fsm.N_FLOORS][fsm.N_BUTTONS]bool
-			// lights from other elevators
+			// slice of orders that are accepted but have been completed.
+			// -> send this slice to completedOrderCh
+
 			for _, elevatorHeartbeat := range allElevatorsHeartbeat {
 				elevators[elevatorHeartbeat.SenderID] = elevatorHeartbeat
 				if elevatorHeartbeat.SenderID != thisID {
 					for _, acceptedOrder := range elevatorHeartbeat.AcceptedOrders {
 						updateLights[acceptedOrder.Floor][acceptedOrder.Type] = true
 					}
+				} else {
+
 				}
 			}
 
