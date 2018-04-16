@@ -43,6 +43,7 @@ func OrderHandler(thisID string,
 
 	placedOrders := make(map[int]msgs.Order)     // all placed placedOrders at this elevator
 	acceptedOrders := make(map[int]msgs.Order)   // set of accepted orderIDs
+	chosenElevatorForOrder := make(map[int]string)	// set of elevatorID for an acceptedOrder
 	takenOrders := make(map[int]msgs.Order)      // set of order this elevator will take
 	elevators := make(map[string]msgs.Heartbeat) //storage of all heartbeats
 
@@ -85,7 +86,7 @@ func OrderHandler(thisID string,
 						bestID = i
 					}
 				}
-
+				chosenElevatorForOrder[order.ID] = bestID
 				// broadcast
 				Info.Printf("elevator %v should take order %v\n", bestID, order.ID)
 				takeOrderMsg := msgs.TakeOrderMsg{SenderID: thisID, ReceiverID: bestID, Order: order}
@@ -120,6 +121,7 @@ func OrderHandler(thisID string,
 				// Add accepted orders
 				for orderID, order := range lastHeartbeat.AcceptedOrders {
 					acceptedOrders[orderID] = order
+					chosenElevatorForOrder[orderID] = lastHeartbeat.ChosenElevatorForOrder[orderID]
 					//Info.Println("writing to addHallOrder (acc)")
 					addHallOrderCh.Send <- fsm.OrderEvent{Floor: order.Floor, Button: order.Type, TurnLightOn: true}
 					//Info.Println("addHallOrder (acc) done")
@@ -151,6 +153,7 @@ func OrderHandler(thisID string,
 				if order.Floor == completedOrder.Floor &&
 					order.Type == completedOrder.Type {
 					delete(acceptedOrders, order.ID)
+					delete(chosenElevatorForOrder, order.ID)
 				}
 			}
 			for _, order := range takenOrders {
@@ -185,6 +188,7 @@ func OrderHandler(thisID string,
 				//delete order
 				delete(takenOrders, orderID)
 				delete(acceptedOrders, orderID)
+				delete(chosenElevatorForOrder, orderID)
 				delete(placedOrders, orderID)
 			}
 
@@ -196,6 +200,11 @@ func OrderHandler(thisID string,
 			for k, v := range acceptedOrders {
 				acceptedOrdersDeepCopy[k] = v
 			}
+			// make deep copy of chosenElevatorForOrder
+			chosenElevatorForOrderDeepCopy := make(map[int]string)
+			for k, v := range chosenElevatorForOrder {
+				chosenElevatorForOrderDeepCopy[k] = v
+			}
 
 			takenOrdersDeepCopy := make(map[int]msgs.Order)
 			for k, v := range takenOrders {
@@ -206,6 +215,7 @@ func OrderHandler(thisID string,
 			heartbeat := msgs.Heartbeat{SenderID: thisID,
 				Status:         elevatorStatus,
 				AcceptedOrders: acceptedOrdersDeepCopy,
+				ChosenElevatorForOrder: chosenElevatorForOrderDeepCopy,
 				TakenOrders:    takenOrdersDeepCopy}
 
 			thisElevatorHeartbeatCh.Send <- heartbeat
@@ -214,20 +224,61 @@ func OrderHandler(thisID string,
 			allElevatorsHeartbeat := msg.([]msgs.Heartbeat)
 
 			var updateLights [fsm.N_FLOORS][fsm.N_BUTTONS]bool
-			// slice of orders that are accepted but have been completed.
-			// -> send this slice to completedOrderCh
 
+			// update elevators
 			for _, elevatorHeartbeat := range allElevatorsHeartbeat {
 				elevators[elevatorHeartbeat.SenderID] = elevatorHeartbeat
-				if elevatorHeartbeat.SenderID != thisID {
-					for _, acceptedOrder := range elevatorHeartbeat.AcceptedOrders {
-						updateLights[acceptedOrder.Floor][acceptedOrder.Type] = true
+			}
+			// update lights: Using elevators or allElevatorsHeartbeat ???
+			for _, elevatorHeartbeat := range allElevatorsHeartbeat {
+				for _, acceptedOrder := range elevatorHeartbeat.AcceptedOrders {
+					chosenElevatorID := elevatorHeartbeat.ChosenElevatorForOrder[acceptedOrder.ID]
+					// find heartbeat for chosenElevatorID in allElevatorsHeartbeat
+					elevatorWithIDFound := false
+					for _, chosenElevatorHeartbeat := range allElevatorsHeartbeat {
+						if chosenElevatorHeartbeat.SenderID == chosenElevatorID {
+							elevatorWithIDFound = true
+							chosenElevatorTakenOrder := chosenElevatorHeratbeat.TakenOrders
+							chosenElevatorStatus := chosenElevatorHeratbeat.Status
+							if _, exists := chosenElevatorTakenOrder[acceptedOrder.ID], exists{
+								if chosenElevatorStatus.Orders[acceptedOrder.Floor][acceptedOrder.Button]{
+									fmt.Println("[order]: Order is taken and registered in fsm. OK")
+									fmt.Println("         Order: \v", acceptedOrder)
+									fmt.Println("         Master: \v", elevatorHeartbeat.SenderID)
+									fmt.Println("         Slave: \v", chosenElevatorID)
+									updateLights[acceptedOrder.Floor][acceptedOrder.Button] = true
+									//break
+								} else { //debugging
+									fmt.Println("[order]: Order is taken, but not registered in fsm. SERIOUS PROBLEM")
+									fmt.Println("         Order: \v", acceptedOrder)
+									fmt.Println("         Master: \v", elevatorHeartbeat.SenderID)
+									fmt.Println("         Slave: \v", chosenElevatorID)
+								}
+							} else {
+								if chosenElevatorStatus.Orders[acceptedOrder.Floor][acceptedOrder.Button]{
+									fmt.Println("[order]: Order is not taken, but registered in fsm, but accepted. ERROR")
+									fmt.Println("         Order: \v", acceptedOrder)
+									fmt.Println("         Master: \v", elevatorHeartbeat.SenderID)
+									fmt.Println("         Slave: \v", chosenElevatorID)
+								} else {
+									fmt.Println("[order]: Order is not taken and is not registered in fsm, but accepted. SERIOUS PROBLEM")
+									fmt.Println("         Order: \v", acceptedOrder)
+									fmt.Println("         Master: \v", elevatorHeartbeat.SenderID)
+									fmt.Println("         Slave: \v", chosenElevatorID)
+									// The order can have been completed and any of the CompletedOrderMsg didnt arrive
+									//
+								}
+							}
+						}
 					}
-				} else {
-
+					if !elevatorWithIDFound {
+						fmt.Println("[order]: Order is taken, but not registered in fsm. SERIOUS PROBLEM")
+						fmt.Println("         Order: \v", acceptedOrder)
+						fmt.Println("         Master: \v", elevatorHeartbeat.SenderID)
+						fmt.Println("         Slave: \v", chosenElevatorID)
+					}
 				}
 			}
-
 			// lights from this elevator
 			for _, acceptedOrder := range acceptedOrders {
 				updateLights[acceptedOrder.Floor][acceptedOrder.Type] = true
