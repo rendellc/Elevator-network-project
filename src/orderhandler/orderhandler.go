@@ -59,10 +59,10 @@ func OrderHandler(thisID string,
 			orderID := createOrderID(buttonEvent.Floor, buttonEvent.Button, fsm.N_FLOORS)
 			order := msgs.Order{ID: orderID, Floor: buttonEvent.Floor, Type: buttonEvent.Button}
 			placedOrders[orderID] = order
-			placedOrder_commhandlerCh.Send <-order
+			placedOrder_commhandlerCh.Send <- order
 
 		case msg, _ := <-redundantOrder_commhandlerCh.Recv:
-			order := msg.(msgs.RedundantOrderMsg)
+			orderMsg := msg.(msgs.RedundantOrderMsg)
 
 			if order, exists := placedOrders[orderMsg.Order.ID]; exists {
 				acceptedOrders[order.ID] = order
@@ -86,11 +86,11 @@ func OrderHandler(thisID string,
 				// broadcast
 				Info.Printf("elevator %v should take order %v\n", bestID, order.ID)
 				takeOrderMsg := msgs.TakeOrderMsg{SenderID: thisID, ReceiverID: bestID, Order: order}
-				assignOrder_commhandlerCh.Send <-takeOrderMsg
+				assignOrder_commhandlerCh.Send <- takeOrderMsg
 
 				if bestID == thisID {
 					assignedOrders[order.ID] = order
-					addHallOrder_fsmCh.Send <-fsm.OrderEvent{Floor: order.Floor,
+					addHallOrder_fsmCh.Send <- fsm.OrderEvent{Floor: order.Floor,
 						Button: order.Type, TurnLightOn: true}
 				}
 			} else {
@@ -102,10 +102,10 @@ func OrderHandler(thisID string,
 
 			if order.SenderID == thisID {
 				Info.Printf("takeOrder_commhandlerCh: assigned order to itself: %v\n", order)
-				addHallOrder_fsmCh.Send <-fsm.OrderEvent{Floor: order.Order.Floor,
+				addHallOrder_fsmCh.Send <- fsm.OrderEvent{Floor: order.Order.Floor,
 					Button: order.Order.Type, TurnLightOn: true}
 			} else {
-				addHallOrder_fsmCh.Send <-fsm.OrderEvent{Floor: order.Order.Floor,
+				addHallOrder_fsmCh.Send <- fsm.OrderEvent{Floor: order.Order.Floor,
 					Button: order.Order.Type, TurnLightOn: false}
 			}
 			assignedOrders[order.Order.ID] = order.Order
@@ -117,7 +117,7 @@ func OrderHandler(thisID string,
 			for _, completedOrder := range completedOrders {
 				orderID := createOrderID(completedOrder.Floor, completedOrder.Button, fsm.N_FLOORS)
 
-				completedOrder_commhandlerCh.Send <-msgs.Order{ID: orderID, Floor: completedOrder.Floor, Type: completedOrder.Button}
+				completedOrder_commhandlerCh.Send <- msgs.Order{ID: orderID, Floor: completedOrder.Floor, Type: completedOrder.Button}
 				Info.Printf("completed order %v\n", orderID)
 
 				//delete order
@@ -150,7 +150,7 @@ func OrderHandler(thisID string,
 				}
 			}
 
-			deleteHallOrder_fsmCh.Send <-fsm.OrderEvent{Floor: completedOrder.Floor, Button: completedOrder.Type}
+			deleteHallOrder_fsmCh.Send <- fsm.OrderEvent{Floor: completedOrder.Floor, Button: completedOrder.Type}
 
 		case msg, _ := <-downedElevators_commhandlerCh.Recv:
 			downedElevators := msg.([]msgs.Heartbeat)
@@ -161,13 +161,13 @@ func OrderHandler(thisID string,
 				// Add taken orders
 				for orderID, order := range lastHeartbeat.TakenOrders {
 					assignedOrders[orderID] = order
-					addHallOrder_fsmCh.Send <-fsm.OrderEvent{Floor: order.Floor, Button: order.Type, TurnLightOn: false}
+					addHallOrder_fsmCh.Send <- fsm.OrderEvent{Floor: order.Floor, Button: order.Type, TurnLightOn: false}
 				}
 				// Add accepted orders
 				for orderID, order := range lastHeartbeat.AcceptedOrders {
 					acceptedOrders[orderID] = order
 					chosenElevatorForOrder[orderID] = lastHeartbeat.ChosenElevatorForOrder[orderID]
-					addHallOrder_fsmCh.Send <-fsm.OrderEvent{Floor: order.Floor, Button: order.Type, TurnLightOn: true}
+					addHallOrder_fsmCh.Send <- fsm.OrderEvent{Floor: order.Floor, Button: order.Type, TurnLightOn: true}
 				}
 				delete(elevators, lastHeartbeat.SenderID)
 			}
@@ -198,7 +198,7 @@ func OrderHandler(thisID string,
 				ChosenElevatorForOrder: chosenElevatorForOrderDeepCopy,
 				TakenOrders:            takenOrdersDeepCopy}
 
-			thisElevatorHeartbeat_commhandlerCh.Send <-heartbeat
+			thisElevatorHeartbeat_commhandlerCh.Send <- heartbeat
 
 		case msg, _ := <-allElevatorsHeartbeat_commhandlerCh.Recv:
 			allElevatorsHeartbeat := msg.([]msgs.Heartbeat)
@@ -225,7 +225,7 @@ func OrderHandler(thisID string,
 					}
 				}
 			}
-			updateLights_fsmCh.Send <-updateLights
+			updateLights_fsmCh.Send <- updateLights
 
 		}
 	}
