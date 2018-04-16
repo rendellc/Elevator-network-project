@@ -6,7 +6,8 @@ import (
 )
 
 type Order struct {
-	ID    int               `json:"order_id"`
+	ID int `json:"order_id"`
+	//assignedElevatorID String		`json:"assigned_elevator_id"`
 	Floor int               `json:"floor"`
 	Type  elevio.ButtonType `json:"button_type"`
 }
@@ -26,10 +27,11 @@ type CompleteOrderMsg OrderMsg
 type CompleteOrderAck OrderMsg
 
 type Heartbeat struct {
-	SenderID       string        `json:"sender_id"`
-	Status         fsm.Elevator  `json:"elevator_status"`
-	AcceptedOrders map[int]Order `json:"accepted_orders"`
-	TakenOrders    map[int]Order `json:"taken_orders"`
+	SenderID               string         `json:"sender_id"`
+	Status                 fsm.Elevator   `json:"elevator_status"`
+	AcceptedOrders         map[int]Order  `json:"accepted_orders"`
+	ChosenElevatorForOrder map[int]string `json:"chosen_elevator_for_orders"`
+	TakenOrders            map[int]Order  `json:"taken_orders"`
 }
 
 // sort.Interface for heartbeat slices
