@@ -58,7 +58,7 @@ func createStampedOrder(order msgs.Order, os OrderState) *StampedOrder {
 		OrderMsg:      msgs.OrderMsg{Order: order}}
 }
 
-const ackwaitTimeout = 2000 * time.Millisecond
+const ackwaitTimeout = 300 * time.Millisecond
 const placeAgainTimeIncrement = 10 * time.Second
 const otherGiveupTime = 40 * time.Second
 const retransmitCountMax = 5       // number of times to retransmit if no ack is recieved
@@ -324,13 +324,14 @@ func Launch(thisID string, commonPort int,
 		//case <-time.After(1000 * time.Millisecond):
 		// make sure that below actions are processed regularly
 		//Info.Printf("all: %+v\n", allOrders)
-		case <-time.After(10 * time.Second):
-			var allOrderSlice []msgs.OrderMsg
-			for _, stampedOrder := range allOrders {
-				allOrderSlice = append(allOrderSlice, stampedOrder.OrderMsg)
-			}
-			Info.Printf("all orders: %+v\n", allOrderSlice)
+		//case <-time.After(10 * time.Second):
+		//	var allOrderSlice []msgs.OrderMsg
+		//	for _, stampedOrder := range allOrders {
+		//		allOrderSlice = append(allOrderSlice, stampedOrder.OrderMsg)
+		//	}
+		//	Info.Printf("all orders: %+v\n", allOrderSlice)
 
+		case <-time.After(100 * time.Millisecond):
 		}
 
 		// actions that happen on every update
