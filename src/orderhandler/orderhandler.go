@@ -8,7 +8,6 @@ import (
 	"log"
 	"os"
 	"sync"
-	"time"
 )
 
 var Info *log.Logger
@@ -54,7 +53,7 @@ func OrderHandler(thisID string,
 	for {
 		select {
 
-		case msg, _ := <- placedHallOrder_fsmCh.Recv:
+		case msg, _ := <-placedHallOrder_fsmCh.Recv:
 			buttonEvent := msg.(fsm.OrderEvent)
 
 			orderID := createOrderID(buttonEvent.Floor, buttonEvent.Button, fsm.N_FLOORS)
@@ -62,7 +61,7 @@ func OrderHandler(thisID string,
 			placedOrders[orderID] = order
 			placedOrder_commhandlerCh.Send <- order
 
-		case msg, _ := <- redundantOrder_commhandlerCh.Recv:
+		case msg, _ := <-redundantOrder_commhandlerCh.Recv:
 			order := msg.(msgs.SafeOrderMsg)
 
 			if order, exists := placedOrders[order.Order.ID]; exists {
@@ -98,7 +97,7 @@ func OrderHandler(thisID string,
 				Info.Println("redundantOrder_commhandlerCh: order didn't exist")
 			}
 
-		case msg, _ := <- assignOrderRead_commhandlerCh.Recv:
+		case msg, _ := <-assignOrderRead_commhandlerCh.Recv:
 			order := msg.(msgs.TakeOrderMsg)
 
 			if order.SenderID == thisID {
@@ -111,7 +110,7 @@ func OrderHandler(thisID string,
 			}
 			assignedOrders[order.Order.ID] = order.Order
 
-		case msg, _ := <- completedHallOrdersThisElev_fsmCh.Recv:
+		case msg, _ := <-completedHallOrdersThisElev_fsmCh.Recv:
 			completedOrders := msg.([]fsm.OrderEvent)
 
 			// find and remove all equivalent placedOrders
@@ -128,7 +127,7 @@ func OrderHandler(thisID string,
 				delete(placedOrders, orderID)
 			}
 
-		case msg, _ := <- completedHallOrderOtherElevCh.Recv:
+		case msg, _ := <-completedHallOrderOtherElevCh.Recv:
 			completedOrder := msg.(msgs.Order)
 
 			for _, order := range placedOrders {
@@ -153,7 +152,7 @@ func OrderHandler(thisID string,
 
 			deleteHallOrder_fsmCh.Send <- fsm.OrderEvent{Floor: completedOrder.Floor, Button: completedOrder.Type}
 
-		case msg, _ := <- downedElevators_commhandlerCh.Recv:
+		case msg, _ := <-downedElevators_commhandlerCh.Recv:
 			downedElevators := msg.([]msgs.Heartbeat)
 
 			for _, lastHeartbeat := range downedElevators {
@@ -173,7 +172,7 @@ func OrderHandler(thisID string,
 				delete(elevators, lastHeartbeat.SenderID)
 			}
 
-		case msg, _ := <- elevatorStatus_fsmCh.Recv:
+		case msg, _ := <-elevatorStatus_fsmCh.Recv:
 			elevatorStatus := msg.(fsm.Elevator)
 
 			// make deep copy of accepted and taken orders
@@ -201,7 +200,7 @@ func OrderHandler(thisID string,
 
 			thisElevatorHeartbeat_commhandlerCh.Send <- heartbeat
 
-		case msg, _ := <- allElevatorsHeartbeat_commhandlerCh.Recv:
+		case msg, _ := <-allElevatorsHeartbeat_commhandlerCh.Recv:
 			allElevatorsHeartbeat := msg.([]msgs.Heartbeat)
 			// update elevators
 			for _, elevatorHeartbeat := range allElevatorsHeartbeat {
@@ -218,7 +217,7 @@ func OrderHandler(thisID string,
 							chosenElevatorTakenOrder := chosenElevatorHeartbeat.TakenOrders
 							chosenElevatorStatus := chosenElevatorHeartbeat.Status
 							if _, exists := chosenElevatorTakenOrder[acceptedOrder.ID]; exists &&
-							 chosenElevatorStatus.Orders[acceptedOrder.Floor][acceptedOrder.Type] {
+								chosenElevatorStatus.Orders[acceptedOrder.Floor][acceptedOrder.Type] {
 								updateLights[acceptedOrder.Floor][acceptedOrder.Type] = true
 								break
 							}
