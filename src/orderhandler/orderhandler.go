@@ -26,10 +26,11 @@ func OrderHandler(thisID string,
 	downedElevators_commhandlerCh *nbc.NonBlockingChan,
 	elevatorStatus_fsmCh *nbc.NonBlockingChan,
 	allElevatorsHeartbeat_commhandlerCh *nbc.NonBlockingChan,
+	lastKnownOrders_commhandlerCh *nbc.NonBlockingChan,
 	/* Write channels */
 	placedOrder_commhandlerCh *nbc.NonBlockingChan,
 	assignOrder_commhandlerCh *nbc.NonBlockingChan,
-	addHallOrder_fsmCh *nbc.NonBlockingChan,
+	addOrder_fsmCh *nbc.NonBlockingChan,
 	completedOrder_commhandlerCh *nbc.NonBlockingChan,
 	deleteHallOrder_fsmCh *nbc.NonBlockingChan,
 	thisElevatorHeartbeat_commhandlerCh *nbc.NonBlockingChan,
@@ -90,7 +91,7 @@ func OrderHandler(thisID string,
 
 				if bestID == thisID {
 					assignedOrders[order.ID] = order
-					addHallOrder_fsmCh.Send <- fsm.OrderEvent{Floor: order.Floor,
+					addOrder_fsmCh.Send <- fsm.OrderEvent{Floor: order.Floor,
 						Button: order.Type, TurnLightOn: true}
 				}
 			} else {
@@ -102,10 +103,10 @@ func OrderHandler(thisID string,
 
 			if order.SenderID == thisID {
 				Info.Printf("takeOrder_commhandlerCh: assigned order to itself: %v\n", order)
-				addHallOrder_fsmCh.Send <- fsm.OrderEvent{Floor: order.Order.Floor,
+				addOrder_fsmCh.Send <- fsm.OrderEvent{Floor: order.Order.Floor,
 					Button: order.Order.Type, TurnLightOn: true}
 			} else {
-				addHallOrder_fsmCh.Send <- fsm.OrderEvent{Floor: order.Order.Floor,
+				addOrder_fsmCh.Send <- fsm.OrderEvent{Floor: order.Order.Floor,
 					Button: order.Order.Type, TurnLightOn: false}
 			}
 			assignedOrders[order.Order.ID] = order.Order
@@ -162,17 +163,26 @@ func OrderHandler(thisID string,
 				for orderID, order := range lastHeartbeat.TakenOrders {
 					assignedOrders[orderID] = order
 					chosenElevatorForOrder[orderID] = thisID
-					addHallOrder_fsmCh.Send <- fsm.OrderEvent{Floor: order.Floor, Button: order.Type, 
+					addOrder_fsmCh.Send <- fsm.OrderEvent{Floor: order.Floor, Button: order.Type, 
 						TurnLightOn: elevators[lastHeartbeat.SenderID].Status.Lights[order.Floor][order.Type]}
 				}
 				// Add accepted orders
 				for orderID, order := range lastHeartbeat.AcceptedOrders {
 					acceptedOrders[orderID] = order
 					chosenElevatorForOrder[orderID] = thisID
-					addHallOrder_fsmCh.Send <- fsm.OrderEvent{Floor: order.Floor, Button: order.Type, TurnLightOn: true}
+					addOrder_fsmCh.Send <- fsm.OrderEvent{Floor: order.Floor, Button: order.Type, TurnLightOn: true}
 				}
 
 				delete(elevators, lastHeartbeat.SenderID)
+			}
+
+		case msg, _ := <-lastKnownOrders_commhandlerCh.Recv:
+			lastOrders := msg.([fsm.N_FLOORS][fsm.N_BUTTONS]bool)
+
+			for floor :=0; floor < fsm.N_FLOORS; floor++ {
+				if lastOrders[floor][elevio.BT_Cab] {
+					addOrder_fsmCh.Send <- fsm.OrderEvent{Floor: floor, Button: elevio.BT_Cab, TurnLightOn: true}
+				}
 			}
 
 		case msg, _ := <-elevatorStatus_fsmCh.Recv:

@@ -141,6 +141,7 @@ func CommHandler(thisID string, commonPort int,
 	takeOrder_orderhandlerCh *nbc.NonBlockingChan,
 	redundantOrder_orderhandlerCh *nbc.NonBlockingChan,
 	completedHallOrderOtherElev_orderhandlerCh *nbc.NonBlockingChan,
+	lastKnownOrders_orderhandlerCh *nbc.NonBlockingChan,
 	/* sync */
 	wg *sync.WaitGroup) {
 
@@ -152,10 +153,12 @@ func CommHandler(thisID string, commonPort int,
 	takeOrderAckSend_bcastCh := make(chan msgs.TakeOrderAck)
 	completeOrderSend_bcastCh := make(chan msgs.CompleteOrderMsg)
 	completeOrderAckSend_bcastCh := make(chan msgs.CompleteOrderAck)
+	lastKnowHeartbeatSend_bcastCh := make(chan msgs.Heartbeat)
 	go bcast.Transmitter(commonPort,
 		placedOrderSend_bcastCh, placedOrderAckSend_bcastCh,
 		takeOrderAckSend_bcastCh, takeOrderSend_bcastCh,
-		completeOrderSend_bcastCh, completeOrderAckSend_bcastCh)
+		completeOrderSend_bcastCh, completeOrderAckSend_bcastCh,
+		lastKnowHeartbeatSend_bcastCh)
 
 	placedOrderRecv_bcastCh := make(chan msgs.PlacedOrderMsg)
 	placedOrderAckRecv_bcastCh := make(chan msgs.PlacedOrderAck)
@@ -163,10 +166,12 @@ func CommHandler(thisID string, commonPort int,
 	takeOrderAckRecv_bcastCh := make(chan msgs.TakeOrderAck)
 	completeOrderRecv_bcastCh := make(chan msgs.CompleteOrderMsg)
 	completeOrderAckRecv_bcastCh := make(chan msgs.CompleteOrderAck)
+	lastKnowHeartbeatRecv_bcastCh := make(chan msgs.Heartbeat)
 	go bcast.Receiver(commonPort,
 		placedOrderRecv_bcastCh, placedOrderAckRecv_bcastCh,
 		takeOrderAckRecv_bcastCh, takeOrderRecv_bcastCh,
-		completeOrderRecv_bcastCh, completeOrderAckRecv_bcastCh)
+		completeOrderRecv_bcastCh, completeOrderAckRecv_bcastCh,
+		lastKnowHeartbeatRecv_bcastCh)
 
 	txEnable_peerCh := make(chan bool)
 	updateHeartbeat_peerCh := make(chan msgs.Heartbeat)
@@ -176,6 +181,7 @@ func CommHandler(thisID string, commonPort int,
 	go peers.Receiver(commonPort, updates_peerCh)
 
 	allOrders := make(map[int]*StampedOrder)
+	allElevators := make(map[string]msgs.Heartbeat)
 
 	// Wait until all modules are initialized
 	wg.Done()
@@ -265,6 +271,12 @@ func CommHandler(thisID string, commonPort int,
 			allOrders[msg.Order.ID] = createStampedOrder(msg.Order, SERVING)
 
 		case peerUpdate := <-updates_peerCh:
+			if len(peerUpdate.Peers) > 0 {
+				for _, heartbeat := range peerUpdate.Peers {
+					allElevators[heartbeat.SenderID] = heartbeat
+				}
+			}
+
 			if len(peerUpdate.Lost) > 0 {
 				var downedElevators []msgs.Heartbeat
 				for _, lastHeartbeat := range peerUpdate.Lost {
@@ -274,12 +286,10 @@ func CommHandler(thisID string, commonPort int,
 				downedElevators_orderhandlerCh.Send <- downedElevators
 			}
 
-			if len(peerUpdate.New) > 0 {
-				Info.Println("new peer: ", peerUpdate.New)
-				// for loop over completedOnBehalf
-				// if a new elevator == order.MasterID
-					// send completed order
-					// 
+			if peerUpdate.New != "" {
+				Info.Printf("new peer: %v\n", peerUpdate.New)
+				lastKnownHeartbeat := allElevators[peerUpdate.New]
+				lastKnowHeartbeatSend_bcastCh <- lastKnownHeartbeat
 			}
 
 			allElevatorsHeartbeat_orderhandlerCh.Send <- peerUpdate.Peers
@@ -331,6 +341,11 @@ func CommHandler(thisID string, commonPort int,
 			heartbeat.SenderID = thisID
 			updateHeartbeat_peerCh <- heartbeat
 
+		case msg := <-lastKnowHeartbeatRecv_bcastCh:
+			if msg.SenderID == thisID {
+				// this elevator just woke up
+				lastKnownOrders_orderhandlerCh.Send <- msg.Status.Orders
+			}
 
 		case <- time.After(timeoutCheckMaxPeriod):
 			// guarantees that the statements below are run sufficiently often.

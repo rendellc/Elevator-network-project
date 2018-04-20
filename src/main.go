@@ -53,6 +53,7 @@ func main() {
 	takeOrderCh := nbc.New()           //make(chan msgs.TakeOrderMsg)
 	downedElevatorsCh := nbc.New()         //make(chan []msgs.Heartbeat)
 	completedHallOrderOtherElevCh := nbc.New() //make(chan msgs.Order)
+	lastKnownOrdersCh := nbc.New() //make(chan msgs.Heartbeat)
 
 	// Channels: Network -> FSM
 	// (none)
@@ -64,12 +65,13 @@ func main() {
 		thisElevatorHeartbeatCh, downedElevatorsCh, placedOrderCh,
 		assignOrderCh, completedOrderCh,
 		allElevatorsHeartbeatCh, takeOrderCh, redundantOrderCh,
-		completedHallOrderOtherElevCh, &wg)
+		completedHallOrderOtherElevCh, lastKnownOrdersCh, &wg)
 
 	go orderhandler.OrderHandler(*id_ptr,
 		placedHallOrderCh, redundantOrderCh, takeOrderCh,
 		completedHallOrdersThisElevCh, completedHallOrderOtherElevCh,
 		downedElevatorsCh, elevatorStatusCh, allElevatorsHeartbeatCh,
+		lastKnownOrdersCh,
 		placedOrderCh, assignOrderCh, addHallOrderCh, completedOrderCh,
 		deleteHallOrderCh, thisElevatorHeartbeatCh, updateLightsCh, &wg)
 

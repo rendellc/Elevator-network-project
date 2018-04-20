@@ -40,7 +40,7 @@ type OrderEvent struct {
 
 func FSM(elevServerAddr string,
 	/* Read channels */
-	addHallOrder_orderhandlerCh *nbc.NonBlockingChan,
+	addOrder_orderhandlerCh *nbc.NonBlockingChan,
 	deleteHallOrder_orderhandlerCh *nbc.NonBlockingChan,
 	updateLights_orderhandlerCh *nbc.NonBlockingChan,
 	/* Write channels */
@@ -81,7 +81,7 @@ func FSM(elevServerAddr string,
 				placedOrder_orderhandlerCh.Send <-orderEvent
 			}
 			
-		case msg, _ := <-addHallOrder_orderhandlerCh.Recv:
+		case msg, _ := <-addOrder_orderhandlerCh.Recv:
 			hallOrder := msg.(OrderEvent)
 			fsmOnAddedOrder(&elevator, doorTimer, hallOrder)
 
