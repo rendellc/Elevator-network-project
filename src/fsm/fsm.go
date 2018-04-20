@@ -44,7 +44,7 @@ func FSM(elevServerAddr string,
 	deleteHallOrder_orderhandlerCh *nbc.NonBlockingChan,
 	updateLights_orderhandlerCh *nbc.NonBlockingChan,
 	/* Write channels */
-	placedHallOrder_orderhandlerCh *nbc.NonBlockingChan,
+	placedOrder_orderhandlerCh *nbc.NonBlockingChan,
 	completedHallOrders_orderhandlerCh *nbc.NonBlockingChan,
 	elevatorStatus_orderhandlerCh *nbc.NonBlockingChan,
 	/* Sync */
@@ -78,9 +78,9 @@ func FSM(elevServerAddr string,
 				orderEvent.TurnLightOn = true
 				fsmOnAddedOrder(&elevator, doorTimer, orderEvent)
 			} else {
-				placedHallOrder_orderhandlerCh.Send <-orderEvent
+				placedOrder_orderhandlerCh.Send <-orderEvent
 			}
-
+			
 		case msg, _ := <-addHallOrder_orderhandlerCh.Recv:
 			hallOrder := msg.(OrderEvent)
 			fsmOnAddedOrder(&elevator, doorTimer, hallOrder)

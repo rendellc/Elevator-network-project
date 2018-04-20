@@ -57,7 +57,7 @@ func OrderHandler(thisID string,
 			buttonEvent := msg.(fsm.OrderEvent)
 
 			orderID := createOrderID(buttonEvent.Floor, buttonEvent.Button, fsm.N_FLOORS)
-			order := msgs.Order{ID: orderID, Floor: buttonEvent.Floor, Type: buttonEvent.Button}
+			order := msgs.Order{ID: orderID, MasterID: thisID, Floor: buttonEvent.Floor, Type: buttonEvent.Button}
 			placedOrders[orderID] = order
 			placedOrder_commhandlerCh.Send <- order
 
@@ -157,18 +157,20 @@ func OrderHandler(thisID string,
 
 			for _, lastHeartbeat := range downedElevators {
 				// elevator is down
-				Info.Printf("down: %+v %v\n", lastHeartbeat.SenderID, lastHeartbeat.AcceptedOrders)
+				Info.Printf("down: %+v %v %v\n", lastHeartbeat.SenderID, lastHeartbeat.AcceptedOrders, lastHeartbeat.TakenOrders)
 				// Add taken orders
 				for orderID, order := range lastHeartbeat.TakenOrders {
 					assignedOrders[orderID] = order
-					addHallOrder_fsmCh.Send <- fsm.OrderEvent{Floor: order.Floor, Button: order.Type, TurnLightOn: false}
+					addHallOrder_fsmCh.Send <- fsm.OrderEvent{Floor: order.Floor, Button: order.Type, 
+						TurnLightOn: elevators[lastHeartbeat.SenderID].Status.Lights[order.Floor][order.Type]}
 				}
 				// Add accepted orders
 				for orderID, order := range lastHeartbeat.AcceptedOrders {
 					acceptedOrders[orderID] = order
-					chosenElevatorForOrder[orderID] = lastHeartbeat.ChosenElevatorForOrder[orderID]
+					chosenElevatorForOrder[orderID] = thisID
 					addHallOrder_fsmCh.Send <- fsm.OrderEvent{Floor: order.Floor, Button: order.Type, TurnLightOn: true}
 				}
+
 				delete(elevators, lastHeartbeat.SenderID)
 			}
 

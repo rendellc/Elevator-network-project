@@ -276,6 +276,10 @@ func CommHandler(thisID string, commonPort int,
 
 			if len(peerUpdate.New) > 0 {
 				Info.Println("new peer: ", peerUpdate.New)
+				// for loop over completedOnBehalf
+				// if a new elevator == order.MasterID
+					// send completed order
+					// 
 			}
 
 			allElevatorsHeartbeat_orderhandlerCh.Send <- peerUpdate.Peers
@@ -294,14 +298,20 @@ func CommHandler(thisID string, commonPort int,
 		case msg := <-completeOrderRecv_bcastCh:
 
 			if msg.SenderID != thisID {
-				completeOrderAckSend_bcastCh <- msgs.CompleteOrderAck{SenderID: thisID,
-					ReceiverID: msg.SenderID,
-					Order:      msg.Order}
+				//if msg.Order.MasterID == thisID {
+					completeOrderAckSend_bcastCh <- msgs.CompleteOrderAck{SenderID: thisID,
+						ReceiverID: msg.SenderID,
+						Order:      msg.Order}
+				//}
+				
 
 				Info.Printf("order %v completed by %v\n", msg.Order, msg.SenderID)
 				completedHallOrderOtherElev_orderhandlerCh.Send <- msg.Order
-
-				delete(allOrders, msg.Order.ID)
+				//if master is in online{
+					delete(allOrders, msg.Order.ID)
+				//} else {
+				//		append(completedOnBehalfOfOther, order)
+				//}
 			}
 
 		case msg := <-completeOrderAckRecv_bcastCh:
