@@ -161,6 +161,7 @@ func OrderHandler(thisID string,
 				// Add taken orders
 				for orderID, order := range lastHeartbeat.TakenOrders {
 					assignedOrders[orderID] = order
+					chosenElevatorForOrder[orderID] = thisID
 					addHallOrder_fsmCh.Send <- fsm.OrderEvent{Floor: order.Floor, Button: order.Type, 
 						TurnLightOn: elevators[lastHeartbeat.SenderID].Status.Lights[order.Floor][order.Type]}
 				}
