@@ -80,10 +80,10 @@ func FSM(elevServerAddr string,
 			} else {
 				placedOrder_orderhandlerCh.Send <-orderEvent
 			}
-			
+
 		case msg, _ := <-addOrder_orderhandlerCh.Recv:
-			hallOrder := msg.(OrderEvent)
-			fsmOnAddedOrder(&elevator, doorTimer, hallOrder)
+			order := msg.(OrderEvent)
+			fsmOnAddedOrder(&elevator, doorTimer, order)
 
 		case msg, _ := <-deleteHallOrder_orderhandlerCh.Recv:
 			hallOrder := msg.(OrderEvent)
@@ -286,6 +286,7 @@ func clearOrder(elev *Elevator, buttonType elevio.ButtonType, hasHardwareAccess 
 			elevio.SetButtonLamp(buttonType, elev.Floor, false)
 		}
 	}
+	elevio.SetStopLamp(false)
 }
 
 func clearOrdersAtFloor(elev *Elevator, canClearLight bool) {

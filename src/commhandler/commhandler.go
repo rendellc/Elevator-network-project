@@ -181,7 +181,7 @@ func CommHandler(thisID string, commonPort int,
 	go peers.Receiver(commonPort, updates_peerCh)
 
 	allOrders := make(map[int]*StampedOrder)
-	allElevators := make(map[string]msgs.Heartbeat)
+	lastHeartbeats := make(map[string]msgs.Heartbeat)
 
 	// Wait until all modules are initialized
 	wg.Done()
@@ -271,24 +271,22 @@ func CommHandler(thisID string, commonPort int,
 			allOrders[msg.Order.ID] = createStampedOrder(msg.Order, SERVING)
 
 		case peerUpdate := <-updates_peerCh:
-			if len(peerUpdate.Peers) > 0 {
-				for _, heartbeat := range peerUpdate.Peers {
-					allElevators[heartbeat.SenderID] = heartbeat
-				}
-			}
 
 			if len(peerUpdate.Lost) > 0 {
 				var downedElevators []msgs.Heartbeat
 				for _, lastHeartbeat := range peerUpdate.Lost {
 					Info.Printf("lost %v\n", lastHeartbeat.SenderID)
 					downedElevators = append(downedElevators, lastHeartbeat)
+					Info.Printf("it last heartbeat was %v\n", lastHeartbeat)
+					lastHeartbeats[lastHeartbeat.SenderID] = lastHeartbeat
 				}
 				downedElevators_orderhandlerCh.Send <- downedElevators
 			}
 
 			if peerUpdate.New != "" {
 				Info.Printf("new peer: %v\n", peerUpdate.New)
-				lastKnownHeartbeat := allElevators[peerUpdate.New]
+				lastKnownHeartbeat := lastHeartbeats[peerUpdate.New]
+				Info.Printf("its last heartbeat is sent: %v\n", lastKnownHeartbeat)
 				lastKnowHeartbeatSend_bcastCh <- lastKnownHeartbeat
 			}
 
@@ -308,20 +306,13 @@ func CommHandler(thisID string, commonPort int,
 		case msg := <-completeOrderRecv_bcastCh:
 
 			if msg.SenderID != thisID {
-				//if msg.Order.MasterID == thisID {
 					completeOrderAckSend_bcastCh <- msgs.CompleteOrderAck{SenderID: thisID,
 						ReceiverID: msg.SenderID,
 						Order:      msg.Order}
-				//}
-				
 
 				Info.Printf("order %v completed by %v\n", msg.Order, msg.SenderID)
 				completedHallOrderOtherElev_orderhandlerCh.Send <- msg.Order
-				//if master is in online{
-					delete(allOrders, msg.Order.ID)
-				//} else {
-				//		append(completedOnBehalfOfOther, order)
-				//}
+				delete(allOrders, msg.Order.ID)
 			}
 
 		case msg := <-completeOrderAckRecv_bcastCh:
@@ -344,6 +335,7 @@ func CommHandler(thisID string, commonPort int,
 		case msg := <-lastKnowHeartbeatRecv_bcastCh:
 			if msg.SenderID == thisID {
 				// this elevator just woke up
+				Info.Printf("my last orders were: %v\n", msg.Status.Orders)
 				lastKnownOrders_orderhandlerCh.Send <- msg.Status.Orders
 			}
 
