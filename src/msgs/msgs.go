@@ -19,14 +19,6 @@ type OrderMsg struct {
 	Order      Order  `json:"order"`
 }
 
-type PlacedOrderMsg OrderMsg
-type PlacedOrderAck OrderMsg
-type TakeOrderMsg OrderMsg
-type TakeOrderAck OrderMsg
-type RedundantOrderMsg OrderMsg
-type CompleteOrderMsg OrderMsg
-type CompleteOrderAck OrderMsg
-
 type Heartbeat struct {
 	SenderID               string         `json:"sender_id"`
 	Status                 fsm.Elevator   `json:"elevator_status"`
@@ -34,6 +26,15 @@ type Heartbeat struct {
 	ChosenElevatorForOrder map[int]string `json:"chosen_elevator_for_orders"`
 	TakenOrders            map[int]Order  `json:"taken_orders"`
 }
+
+type PlacedOrderMsg OrderMsg
+type PlacedOrderAck OrderMsg
+type TakeOrderMsg OrderMsg
+type TakeOrderAck OrderMsg
+type RedundantOrderMsg OrderMsg
+type CompleteOrderMsg OrderMsg
+type CompleteOrderAck OrderMsg
+type HeartbeatAck Heartbeat
 
 // sort.Interface for heartbeat slices
 type HeartbeatSlice []Heartbeat

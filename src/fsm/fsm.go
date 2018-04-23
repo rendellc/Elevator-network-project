@@ -158,6 +158,8 @@ func initializeState(elev *Elevator, floorSensorCh <-chan int) {
 			elevio.SetButtonLamp(elevio.ButtonType(button), floor, false)
 		}
 	}
+	elevio.SetStopLamp(false)
+	elevio.SetDoorOpenLamp(false)
 	elevio.SetMotorDirection(elevio.MD_Down)
 	elev.Floor = <-floorSensorCh
 	elev.Dir = elevio.MD_Stop
@@ -286,7 +288,6 @@ func clearOrder(elev *Elevator, buttonType elevio.ButtonType, hasHardwareAccess 
 			elevio.SetButtonLamp(buttonType, elev.Floor, false)
 		}
 	}
-	elevio.SetStopLamp(false)
 }
 
 func clearOrdersAtFloor(elev *Elevator, canClearLight bool) {

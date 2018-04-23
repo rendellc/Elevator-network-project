@@ -49,12 +49,26 @@ type StampedOrder struct {
 	OrderMsg msgs.OrderMsg
 }
 
+type StampedLastHeartbeat struct {
+	TimeStamp     time.Time
+	Alive         bool
+	TransmitCount int
+	LastHeartbeat msgs.Heartbeat
+}
+
 func createStampedOrder(order msgs.Order, os OrderState) *StampedOrder {
 	return &StampedOrder{TimeStamp: time.Now(),
 		TransmitCount: 1,
 		PlacedCount:   1,
 		OrderState:    os,
 		OrderMsg:      msgs.OrderMsg{Order: order}}
+}
+
+func createStampedLastHearbeat(heartbeat msgs.Heartbeat, alive bool) *StampedLastHeartbeat {
+	return &StampedLastHeartbeat{TimeStamp: time.Now(),
+		TransmitCount: 1,
+		Alive:         alive,
+		LastHeartbeat: heartbeat}
 }
 
 const ackwaitTimeout = 100 * time.Millisecond
@@ -154,11 +168,12 @@ func CommHandler(thisID string, commonPort int,
 	completeOrderSend_bcastCh := make(chan msgs.CompleteOrderMsg)
 	completeOrderAckSend_bcastCh := make(chan msgs.CompleteOrderAck)
 	lastKnowHeartbeatSend_bcastCh := make(chan msgs.Heartbeat)
+	lastKnowHeartbeatAckSend_bcastCh := make(chan msgs.HeartbeatAck)
 	go bcast.Transmitter(commonPort,
 		placedOrderSend_bcastCh, placedOrderAckSend_bcastCh,
 		takeOrderAckSend_bcastCh, takeOrderSend_bcastCh,
 		completeOrderSend_bcastCh, completeOrderAckSend_bcastCh,
-		lastKnowHeartbeatSend_bcastCh)
+		lastKnowHeartbeatSend_bcastCh, lastKnowHeartbeatAckSend_bcastCh)
 
 	placedOrderRecv_bcastCh := make(chan msgs.PlacedOrderMsg)
 	placedOrderAckRecv_bcastCh := make(chan msgs.PlacedOrderAck)
@@ -167,11 +182,12 @@ func CommHandler(thisID string, commonPort int,
 	completeOrderRecv_bcastCh := make(chan msgs.CompleteOrderMsg)
 	completeOrderAckRecv_bcastCh := make(chan msgs.CompleteOrderAck)
 	lastKnowHeartbeatRecv_bcastCh := make(chan msgs.Heartbeat)
+	lastKnowHeartbeatAckRecv_bcastCh := make(chan msgs.HeartbeatAck)
 	go bcast.Receiver(commonPort,
 		placedOrderRecv_bcastCh, placedOrderAckRecv_bcastCh,
 		takeOrderAckRecv_bcastCh, takeOrderRecv_bcastCh,
 		completeOrderRecv_bcastCh, completeOrderAckRecv_bcastCh,
-		lastKnowHeartbeatRecv_bcastCh)
+		lastKnowHeartbeatRecv_bcastCh, lastKnowHeartbeatAckRecv_bcastCh)
 
 	txEnable_peerCh := make(chan bool)
 	updateHeartbeat_peerCh := make(chan msgs.Heartbeat)
@@ -181,7 +197,7 @@ func CommHandler(thisID string, commonPort int,
 	go peers.Receiver(commonPort, updates_peerCh)
 
 	allOrders := make(map[int]*StampedOrder)
-	lastHeartbeats := make(map[string]msgs.Heartbeat)
+	lastHeartbeats := make(map[string]*StampedLastHeartbeat)
 
 	// Wait until all modules are initialized
 	wg.Done()
@@ -277,17 +293,21 @@ func CommHandler(thisID string, commonPort int,
 				for _, lastHeartbeat := range peerUpdate.Lost {
 					Info.Printf("lost %v\n", lastHeartbeat.SenderID)
 					downedElevators = append(downedElevators, lastHeartbeat)
-					Info.Printf("it last heartbeat was %v\n", lastHeartbeat)
-					lastHeartbeats[lastHeartbeat.SenderID] = lastHeartbeat
+					lastHeartbeats[lastHeartbeat.SenderID] = createStampedLastHearbeat(lastHeartbeat, false)
+					Info.Printf("it last heartbeat was %v\n", lastHeartbeats[lastHeartbeat.SenderID])
 				}
 				downedElevators_orderhandlerCh.Send <- downedElevators
 			}
 
 			if peerUpdate.New != "" {
-				Info.Printf("new peer: %v\n", peerUpdate.New)
-				lastKnownHeartbeat := lastHeartbeats[peerUpdate.New]
-				Info.Printf("its last heartbeat is sent: %v\n", lastKnownHeartbeat)
-				lastKnowHeartbeatSend_bcastCh <- lastKnownHeartbeat
+				if _, exists := lastHeartbeats[peerUpdate.New]; exists {
+					Info.Printf("new peer: %v\n", peerUpdate.New)
+					lastHeartbeat := lastHeartbeats[peerUpdate.New].LastHeartbeat
+					lastHeartbeats[peerUpdate.New] = createStampedLastHearbeat(lastHeartbeat, true)
+					lastKnownHeartbeat := lastHeartbeats[peerUpdate.New]
+					Info.Printf("its last heartbeat is sent: %v\n", lastKnownHeartbeat)
+					lastKnowHeartbeatSend_bcastCh <- lastKnownHeartbeat.LastHeartbeat
+				}
 			}
 
 			allElevatorsHeartbeat_orderhandlerCh.Send <- peerUpdate.Peers
@@ -337,7 +357,14 @@ func CommHandler(thisID string, commonPort int,
 				// this elevator just woke up
 				Info.Printf("my last orders were: %v\n", msg.Status.Orders)
 				lastKnownOrders_orderhandlerCh.Send <- msg.Status.Orders
+				// acknowledge
+				lastKnowHeartbeatAckSend_bcastCh <- msgs.HeartbeatAck(msg)
+
 			}
+
+		case msg := <-lastKnowHeartbeatAckRecv_bcastCh:
+			Info.Printf("%v acknowledged zombie orders\n", msg.SenderID)
+			delete(lastHeartbeats, msg.SenderID)
 
 		case <- time.After(timeoutCheckMaxPeriod):
 			// guarantees that the statements below are run sufficiently often.
@@ -368,6 +395,20 @@ func CommHandler(thisID string, commonPort int,
 
 				takeOrder_orderhandlerCh.Send <- msg
 				allOrders[orderID] = createStampedOrder(stampedOrder.OrderMsg.Order, SERVING)
+			}
+		}
+
+		
+		for _, heartbeatStamped := range lastHeartbeats {
+			if heartbeatStamped.Alive {
+				retransmitDuration := time.Duration(heartbeatStamped.TransmitCount) * ackwaitTimeout
+				timeoutTime := heartbeatStamped.TimeStamp.Add(retransmitDuration)
+
+				if time.Now().After(timeoutTime) {
+					Info.Printf("retransmitting zombie orders for %v for time %v\n", heartbeatStamped.LastHeartbeat.SenderID, heartbeatStamped.TransmitCount)
+					heartbeatStamped.TransmitCount += 1
+					lastKnowHeartbeatSend_bcastCh <- heartbeatStamped.LastHeartbeat
+				}
 			}
 		}
 	}
