@@ -87,10 +87,11 @@ func FSM(elevServerAddr string,
 
 		case msg, _ := <-deleteHallOrder_orderhandlerCh.Recv:
 			hallOrder := msg.(OrderEvent)
-			clearOrder(&elevator, hallOrder.Button, true)
+			clearOrder(&elevator, hallOrder.Floor, hallOrder.Button, true)
 			// hallOrder was not completed by this elevator. Hence,
 			elevator.CompletedOrders[hallOrder.Floor][hallOrder.Button] = false
 			Info.Printf("deleteHallOrder %+v\n", hallOrder)
+			Info.Printf("orders now %+v\n", elevator.Orders)
 			if elevator.State == ST_DoorOpen {
 				updateElevatorDirection(&elevator)
 				clearOrdersAtFloor(&elevator, true)
@@ -279,11 +280,11 @@ func updateElevatorDirection(elev *Elevator) {
 	}
 }
 
-func clearOrder(elev *Elevator, buttonType elevio.ButtonType, hasHardwareAccess bool) {
-	if elev.Orders[elev.Floor][buttonType] {
-		elev.Orders[elev.Floor][buttonType] = false
-		elev.CompletedOrders[elev.Floor][buttonType] = true
-		elev.Lights[elev.Floor][buttonType] = false
+func clearOrder(elev *Elevator, floor int, buttonType elevio.ButtonType, hasHardwareAccess bool) {
+	if elev.Orders[floor][buttonType] {
+		elev.Orders[floor][buttonType] = false
+		elev.CompletedOrders[floor][buttonType] = true
+		elev.Lights[floor][buttonType] = false
 		if hasHardwareAccess {
 			elevio.SetButtonLamp(buttonType, elev.Floor, false)
 		}
@@ -293,21 +294,21 @@ func clearOrder(elev *Elevator, buttonType elevio.ButtonType, hasHardwareAccess 
 func clearOrdersAtFloor(elev *Elevator, canClearLight bool) {
 	switch elev.Dir {
 	case elevio.MD_Up:
-		clearOrder(elev, elevio.BT_HallUp, canClearLight)
-		clearOrder(elev, elevio.BT_Cab, canClearLight)
+		clearOrder(elev, elev.Floor, elevio.BT_HallUp, canClearLight)
+		clearOrder(elev, elev.Floor, elevio.BT_Cab, canClearLight)
 		if !isOrderAbove(*elev) {
-			clearOrder(elev, elevio.BT_HallDown, canClearLight)
+			clearOrder(elev, elev.Floor, elevio.BT_HallDown, canClearLight)
 		}
 	case elevio.MD_Down:
-		clearOrder(elev, elevio.BT_HallDown, canClearLight)
-		clearOrder(elev, elevio.BT_Cab, canClearLight)
+		clearOrder(elev, elev.Floor, elevio.BT_HallDown, canClearLight)
+		clearOrder(elev, elev.Floor, elevio.BT_Cab, canClearLight)
 		if !isOrderBelow(*elev) {
-			clearOrder(elev, elevio.BT_HallUp, canClearLight)
+			clearOrder(elev, elev.Floor, elevio.BT_HallUp, canClearLight)
 		}
 	case elevio.MD_Stop:
-		clearOrder(elev, elevio.BT_HallUp, canClearLight)
-		clearOrder(elev, elevio.BT_HallDown, canClearLight)
-		clearOrder(elev, elevio.BT_Cab, canClearLight)
+		clearOrder(elev, elev.Floor, elevio.BT_HallUp, canClearLight)
+		clearOrder(elev, elev.Floor, elevio.BT_HallDown, canClearLight)
+		clearOrder(elev, elev.Floor, elevio.BT_Cab, canClearLight)
 	}
 }
 
