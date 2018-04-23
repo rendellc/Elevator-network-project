@@ -403,11 +403,12 @@ func CommHandler(thisID string, commonPort int,
 			if heartbeatStamped.Alive {
 				retransmitDuration := time.Duration(heartbeatStamped.TransmitCount) * ackwaitTimeout
 				timeoutTime := heartbeatStamped.TimeStamp.Add(retransmitDuration)
-
-				if time.Now().After(timeoutTime) {
-					Info.Printf("retransmitting zombie orders for %v for time %v\n", heartbeatStamped.LastHeartbeat.SenderID, heartbeatStamped.TransmitCount)
-					heartbeatStamped.TransmitCount += 1
-					lastKnowHeartbeatSend_bcastCh <- heartbeatStamped.LastHeartbeat
+				if heartbeatStamped.TransmitCount <= retransmitCountMax {
+					if time.Now().After(timeoutTime) {
+						Info.Printf("retransmitting zombie orders for %v for time %v\n", heartbeatStamped.LastHeartbeat.SenderID, heartbeatStamped.TransmitCount)
+						heartbeatStamped.TransmitCount += 1
+						lastKnowHeartbeatSend_bcastCh <- heartbeatStamped.LastHeartbeat
+					}
 				}
 			}
 		}
