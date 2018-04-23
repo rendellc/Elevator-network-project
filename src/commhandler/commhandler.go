@@ -363,7 +363,7 @@ func CommHandler(thisID string, commonPort int,
 			}
 
 		case msg := <-lastKnowHeartbeatAckRecv_bcastCh:
-			Info.Printf("%v acknowledged zombie orders\n", msg.SenderID)
+			Info.Printf("%v acks its last heartbeat\n", msg.SenderID)
 			delete(lastHeartbeats, msg.SenderID)
 
 		case <- time.After(timeoutCheckMaxPeriod):
@@ -398,14 +398,13 @@ func CommHandler(thisID string, commonPort int,
 			}
 		}
 
-		
 		for _, heartbeatStamped := range lastHeartbeats {
 			if heartbeatStamped.Alive {
 				retransmitDuration := time.Duration(heartbeatStamped.TransmitCount) * ackwaitTimeout
 				timeoutTime := heartbeatStamped.TimeStamp.Add(retransmitDuration)
 				if heartbeatStamped.TransmitCount <= retransmitCountMax {
 					if time.Now().After(timeoutTime) {
-						Info.Printf("retransmitting zombie orders for %v for time %v\n", heartbeatStamped.LastHeartbeat.SenderID, heartbeatStamped.TransmitCount)
+						Info.Printf("retransmitting last heartbeat for %v for time %v\n", heartbeatStamped.LastHeartbeat.SenderID, heartbeatStamped.TransmitCount)
 						heartbeatStamped.TransmitCount += 1
 						lastKnowHeartbeatSend_bcastCh <- heartbeatStamped.LastHeartbeat
 					}

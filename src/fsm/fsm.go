@@ -153,13 +153,13 @@ func FSM(elevServerAddr string,
 }
 
 func initializeState(elev *Elevator, floorSensorCh <-chan int) {
+	elevio.SetStopLamp(false)
+	elevio.SetDoorOpenLamp(false)
 	for floor := 0; floor < N_FLOORS; floor++ {
 		for button := 0; button < N_BUTTONS; button++ {
 			elevio.SetButtonLamp(elevio.ButtonType(button), floor, false)
 		}
 	}
-	elevio.SetStopLamp(false)
-	elevio.SetDoorOpenLamp(false)
 	elevio.SetMotorDirection(elevio.MD_Down)
 	elev.Floor = <-floorSensorCh
 	elev.Dir = elevio.MD_Stop
